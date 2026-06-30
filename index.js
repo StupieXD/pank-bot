@@ -8,6 +8,9 @@ import {
   Partials
 } from 'discord.js';
 
+const messageCache = new Map();
+const MAX_CACHED_MESSAGES = 5000;
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -23,6 +26,27 @@ const client = new Client({
 
 client.once(Events.ClientReady, () => {
   console.log(`✅ Pank is online as ${client.user.tag}`);
+});
+
+client.on(Events.MessageCreate, (message) => {
+  if (message.author.bot) return;
+
+  messageCache.set(message.id, {
+    id: message.id,
+    username: message.author.tag,
+    displayName: message.member?.displayName ?? message.author.username,
+    userId: message.author.id,
+    channelName: message.channel?.name ?? 'Unknown channel',
+    channelId: message.channel?.id ?? 'Unknown channel ID',
+    timestamp: message.createdAt?.toISOString() ?? new Date().toISOString(),
+    content: message.content?.trim() || '[No text content]',
+    attachments: [...message.attachments.values()].map(a => a.url)
+  });
+
+  if (messageCache.size > MAX_CACHED_MESSAGES) {
+    const oldestKey = messageCache.keys().next().value;
+    messageCache.delete(oldestKey);
+  }
 });
 
 async function findModerator(guild, deletedChannelId) {
@@ -45,63 +69,69 @@ async function findModerator(guild, deletedChannelId) {
 }
 
 client.on(Events.MessageBulkDelete, async (messages, channel) => {
-  const logChannelId = process.env.PURGE_LOG_CHANNEL_ID;
-  const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+  const logChannel = await client.channels.fetch(process.env.PURGE_LOG_CHANNEL_ID).catch(() => null);
 
   if (!logChannel) {
     console.log('❌ Could not find purge log channel.');
     return;
   }
 
-  const cachedMessages = [...messages.values()]
-    .filter(message => !message.author?.bot)
-    .sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-
-  const moderator = channel.guild
-    ? await findModerator(channel.guild, channel.id)
-    : null;
+  const moderator = channel.guild ? await findModerator(channel.guild, channel.id) : null;
 
   const lines = [];
 
-  lines.push(`PURGE LOG`);
+  lines.push('PURGE LOG');
   lines.push(`Channel: #${channel.name} (${channel.id})`);
   lines.push(`Deleted messages: ${messages.size}`);
-  lines.push(`Cached non-bot messages logged: ${cachedMessages.length}`);
   lines.push(`Moderator: ${moderator ? `${moderator.tag} (${moderator.id})` : 'Unknown'}`);
   lines.push(`Time: ${new Date().toISOString()}`);
   lines.push('');
   lines.push('------------------------------');
   lines.push('');
 
-  for (const message of cachedMessages) {
-    const username = message.author?.tag ?? 'Unknown user';
-    const displayName = message.member?.displayName ?? message.author?.username ?? 'Unknown display name';
-    const userId = message.author?.id ?? 'Unknown ID';
-    const timestamp = message.createdAt ? message.createdAt.toISOString() : 'Unknown timestamp';
-    const content = message.content?.trim() || '[No text content]';
+  let loggedCount = 0;
+  let uncachedCount = 0;
 
-    lines.push(`User: ${username}`);
-    lines.push(`Display name: ${displayName}`);
-    lines.push(`User ID: ${userId}`);
-    lines.push(`Channel: #${channel.name}`);
-    lines.push(`Timestamp: ${timestamp}`);
-    lines.push(`Message: ${content}`);
+  for (const deletedMessage of messages.values()) {
+    const cached = messageCache.get(deletedMessage.id);
 
-    if (message.attachments?.size > 0) {
+    if (!cached) {
+      uncachedCount++;
+
+      lines.push(`Message ID: ${deletedMessage.id}`);
+      lines.push('Status: Not cached, so content and author details are unavailable.');
+      lines.push(`Channel: #${channel.name}`);
+      lines.push('');
+      lines.push('------------------------------');
+      lines.push('');
+      continue;
+    }
+
+    loggedCount++;
+
+    lines.push(`User: ${cached.username}`);
+    lines.push(`Display name: ${cached.displayName}`);
+    lines.push(`User ID: ${cached.userId}`);
+    lines.push(`Channel: #${cached.channelName} (${cached.channelId})`);
+    lines.push(`Timestamp: ${cached.timestamp}`);
+    lines.push(`Message: ${cached.content}`);
+
+    if (cached.attachments.length > 0) {
       lines.push('Attachments:');
-      for (const attachment of message.attachments.values()) {
-        lines.push(`- ${attachment.url}`);
+      for (const url of cached.attachments) {
+        lines.push(`- ${url}`);
       }
     }
 
     lines.push('');
     lines.push('------------------------------');
     lines.push('');
+
+    messageCache.delete(deletedMessage.id);
   }
 
-  if (cachedMessages.length === 0) {
-    lines.push('No cached non-bot messages were available for this purge.');
-  }
+  lines.splice(3, 0, `Cached messages logged: ${loggedCount}`);
+  lines.splice(4, 0, `Uncached messages: ${uncachedCount}`);
 
   const logText = lines.join('\n');
 
@@ -115,7 +145,7 @@ client.on(Events.MessageBulkDelete, async (messages, channel) => {
     });
 
     await logChannel.send({
-      content: `🧹 **Bulk purge detected in #${channel.name}**\nDeleted messages: **${messages.size}**\nModerator: **${moderator ? moderator.tag : 'Unknown'}**\nFull log attached.`,
+      content: `🧹 **Bulk purge detected in #${channel.name}**\nDeleted messages: **${messages.size}**\nCached messages logged: **${loggedCount}**\nUncached messages: **${uncachedCount}**\nModerator: **${moderator ? moderator.tag : 'Unknown'}**\nFull log attached.`,
       files: [file]
     });
   }
