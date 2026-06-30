@@ -1,0 +1,14 @@
+{
+  "name": "pank-bot",
+  "version": "1.0.0",
+  "description": "Custom Discord bot for Stuniverse",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "latest",
+    "dotenv": "latest"
+  }
+}
