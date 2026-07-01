@@ -13,8 +13,12 @@ export async function handleBulkPurge(messages, channel, client) {
       type: AuditLogEvent.MessageBulkDelete,
       match: (log) => {
         const recent = Date.now() - log.createdTimestamp < 10000;
-        const sameChannel = log.extra?.channel?.id === channel.id;
-        return recent && sameChannel;
+        const sameChannel =
+  log.extra?.channel?.id === channel.id ||
+  log.extra?.channelId === channel.id ||
+  log.target?.id === channel.id;
+
+return recent && sameChannel;
       }
     })
   : null;
