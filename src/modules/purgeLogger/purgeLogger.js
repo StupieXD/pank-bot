@@ -1,15 +1,25 @@
-import { AttachmentBuilder } from 'discord.js';
+import { AttachmentBuilder, AuditLogEvent } from 'discord.js';
 import { getCachedMessage, deleteCachedMessage } from '../../utils/messageCache.js';
-import { findBulkDeleteModerator } from '../../services/auditLogs.js';
+import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 import { config } from '../../config/config.js';
 
 export async function handleBulkPurge(messages, channel, client) {
   const logChannel = await client.channels.fetch(config.purgeLogChannelId).catch(() => null);
   if (!logChannel) return console.log('❌ Could not find purge log channel.');
 
-  const moderator = channel.guild
-    ? await findBulkDeleteModerator(channel.guild, channel.id, messages.size)
-    : null;
+  const auditEntry = channel.guild
+  ? await waitForAuditLogEntry({
+      guild: channel.guild,
+      type: AuditLogEvent.MessageBulkDelete,
+      match: (log) => {
+        const recent = Date.now() - log.createdTimestamp < 10000;
+        const sameChannel = log.extra?.channel?.id === channel.id;
+        return recent && sameChannel;
+      }
+    })
+  : null;
+
+const moderator = auditEntry?.executor ?? null;
 
   let loggedCount = 0;
   let uncachedCount = 0;
