@@ -1,3 +1,4 @@
+import { findRecentPurgeAction } from '../../services/purgeContext.js';
 import { AttachmentBuilder, AuditLogEvent } from 'discord.js';
 import { getCachedMessage, deleteCachedMessage } from '../../utils/messageCache.js';
 import { waitForAuditLogEntry } from '../../services/auditLogService.js';
@@ -23,7 +24,13 @@ return recent && sameChannel;
     })
   : null;
 
-const moderator = auditEntry?.executor ?? null;
+const purgeAction = findRecentPurgeAction({
+  guildId: channel.guild?.id,
+  channelId: channel.id,
+  count: messages.size
+});
+
+const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
 
   let loggedCount = 0;
   let uncachedCount = 0;
