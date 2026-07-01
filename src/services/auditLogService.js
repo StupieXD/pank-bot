@@ -1,5 +1,3 @@
-import { Collection } from 'discord.js';
-
 export async function waitForAuditLogEntry({
   guild,
   type,
@@ -18,14 +16,12 @@ export async function waitForAuditLogEntry({
 
       const entry = logs.entries.find(match);
 
-      if (entry) {
-        return entry;
-      }
-    } catch (err) {
-      console.error('Failed to fetch audit logs:', err);
+      if (entry) return entry;
+    } catch (error) {
+      console.error('Failed to fetch audit logs:', error);
     }
 
-    await new Promise(resolve => setTimeout(resolve, interval));
+    await new Promise((resolve) => setTimeout(resolve, interval));
   }
 
   return null;
