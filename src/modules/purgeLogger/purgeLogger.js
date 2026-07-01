@@ -1,7 +1,7 @@
 import { AttachmentBuilder } from 'discord.js';
 import { getCachedMessage, deleteCachedMessage } from '../../utils/messageCache.js';
 import { findBulkDeleteModerator } from '../../services/auditLogs.js';
-import { config } from '../../config.js';
+import { config } from '../../config/config.js';
 
 export async function handleBulkPurge(messages, channel, client) {
   const logChannel = await client.channels.fetch(config.purgeLogChannelId).catch(() => null);
