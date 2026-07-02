@@ -215,13 +215,24 @@ export async function handlePurgeButton(interaction) {
 
 async function runPurge(purgeData) {
   rememberPurgeAction({
-    guildId: purgeData.guildId,
-    channelId: purgeData.channelId,
-    moderator: purgeData.moderator,
-    amount: purgeData.messagesToDelete.length,
-    reason: purgeData.reason,
-    filters: purgeData.filters
-  });
+  guildId: purgeData.guildId,
+  channelId: purgeData.channelId,
+  moderator: purgeData.moderator,
+  amount: purgeData.messagesToDelete.length,
+  reason: purgeData.reason,
+  filters: purgeData.filters,
+  archivedMessages: purgeData.messagesToDelete.map((message) => ({
+    id: message.id,
+    username: message.author?.tag ?? 'Unknown user',
+    displayName: message.member?.displayName ?? message.author?.globalName ?? message.author?.username ?? 'Unknown user',
+    userId: message.author?.id ?? 'Unknown user ID',
+    channelName: message.channel?.name ?? 'Unknown channel',
+    channelId: message.channel?.id ?? 'Unknown channel ID',
+    timestamp: message.createdAt?.toISOString() ?? new Date().toISOString(),
+    content: message.content?.trim() || '[No text content]',
+    attachments: [...message.attachments.values()].map((attachment) => attachment.url)
+  }))
+});
 
   const deleted = await purgeData.channel.bulkDelete(purgeData.messagesToDelete, true);
 
