@@ -15,10 +15,22 @@ import {
 
 const LINK_REGEX = /(https?:\/\/|www\.|discord\.gg|discord\.com\/invite)/i;
 
+const EMBED_COLOURS = {
+  confirm: 0xf1c40f,
+  success: 0x2ecc71,
+  cancelled: 0xe67e22,
+  error: 0xe74c3c
+};
+
 export async function executePurge(interaction) {
   if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageMessages)) {
     return interaction.reply({
-      content: '❌ You do not have permission to use this command.',
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLOURS.error)
+          .setTitle('❌ Permission Denied')
+          .setDescription('You do not have permission to use this command.')
+      ],
       ephemeral: true
     });
   }
@@ -37,11 +49,14 @@ export async function executePurge(interaction) {
   let messagesToDelete = [...fetchedMessages.values()];
 
   if (targetUser) {
-    messagesToDelete = messagesToDelete.filter((message) => message.author.id === targetUser.id);
+    messagesToDelete = messagesToDelete.filter(
+      (message) => message.author.id === targetUser.id
+    );
   }
 
   if (contains) {
     const searchText = contains.toLowerCase();
+
     messagesToDelete = messagesToDelete.filter((message) =>
       message.content.toLowerCase().includes(searchText)
     );
@@ -56,7 +71,9 @@ export async function executePurge(interaction) {
   }
 
   if (linksOnly) {
-    messagesToDelete = messagesToDelete.filter((message) => LINK_REGEX.test(message.content));
+    messagesToDelete = messagesToDelete.filter((message) =>
+      LINK_REGEX.test(message.content)
+    );
   }
 
   const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
@@ -66,7 +83,14 @@ export async function executePurge(interaction) {
   );
 
   if (messagesToDelete.length === 0) {
-    return interaction.editReply('No matching messages found to delete.');
+    return interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLOURS.error)
+          .setTitle('❌ No Matching Messages')
+          .setDescription('No matching messages were found to delete.')
+      ]
+    });
   }
 
   const purgeData = {
@@ -85,6 +109,7 @@ export async function executePurge(interaction) {
         ? {
             username: targetUser.username,
             tag: targetUser.tag,
+            displayName: targetUser.globalName || targetUser.username,
             id: targetUser.id
           }
         : null,
@@ -109,11 +134,15 @@ export async function executePurge(interaction) {
   const deletedCount = await runPurge(purgeData);
 
   return interaction.editReply({
-    content: buildSuccessMessage({
-      deletedCount,
-      scannedAmount: amount,
-      reason: purgeData.reason
-    })
+    embeds: [
+      buildSuccessEmbed({
+        deletedCount,
+        scannedAmount: amount,
+        reason: purgeData.reason,
+        moderator: interaction.user,
+        channelId: interaction.channelId
+      })
+    ]
   });
 }
 
@@ -123,21 +152,32 @@ export async function handlePurgeButton(interaction) {
 
   if (!isConfirm && !isCancel) return;
 
-  const confirmationId = interaction.customId.replace('confirm_', '').replace('cancel_', '');
+  const confirmationId = interaction.customId
+    .replace('confirm_', '')
+    .replace('cancel_', '');
 
   const purgeData = getPendingPurge(confirmationId);
 
   if (!purgeData) {
     return interaction.reply({
-      content:
-        '⌛ This confirmation has expired.\n\nRun `/purge` again if you still want to delete these messages.',
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLOURS.error)
+          .setTitle('⌛ Confirmation Expired')
+          .setDescription('Run `/purge` again if you still want to delete these messages.')
+      ],
       ephemeral: true
     });
   }
 
   if (interaction.user.id !== purgeData.interactionUserId) {
     return interaction.reply({
-      content: 'Only the moderator who started this purge can use these buttons.',
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLOURS.error)
+          .setTitle('❌ Not Your Confirmation')
+          .setDescription('Only the moderator who started this purge can use these buttons.')
+      ],
       ephemeral: true
     });
   }
@@ -146,9 +186,10 @@ export async function handlePurgeButton(interaction) {
     deletePendingPurge(confirmationId);
 
     return interaction.update({
-      content: '❌ **Purge Cancelled**\n\nNo messages were deleted.',
-      embeds: [],
-      components: [buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)]
+      embeds: [buildCancelledEmbed()],
+      components: [
+        buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)
+      ]
     });
   }
 
@@ -157,13 +198,18 @@ export async function handlePurgeButton(interaction) {
   deletePendingPurge(confirmationId);
 
   return interaction.update({
-    content: buildSuccessMessage({
-      deletedCount,
-      scannedAmount: purgeData.scannedAmount,
-      reason: purgeData.reason
-    }),
-    embeds: [],
-    components: [buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)]
+    embeds: [
+      buildSuccessEmbed({
+        deletedCount,
+        scannedAmount: purgeData.scannedAmount,
+        reason: purgeData.reason,
+        moderator: purgeData.moderator,
+        channelId: purgeData.channelId
+      })
+    ],
+    components: [
+      buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)
+    ]
   });
 }
 
@@ -196,7 +242,7 @@ function buildConfirmEmbed(purgeData) {
     },
     {
       name: '👤 Requested by',
-      value: `${purgeData.moderator.tag}`,
+      value: getUserDisplayName(purgeData.moderator),
       inline: true
     }
   ];
@@ -228,49 +274,58 @@ function buildConfirmEmbed(purgeData) {
   });
 
   return new EmbedBuilder()
+    .setColor(EMBED_COLOURS.confirm)
     .setTitle('⚠️ Confirm Purge')
     .setDescription('Please review this purge before continuing.')
     .addFields(fields)
     .setFooter({ text: '⏳ This confirmation expires in 30 seconds.' });
 }
 
-function buildFiltersText(filters) {
-  const activeFilters = [];
-
-  if (filters.user) activeFilters.push(`User: ${filters.user.tag} (${filters.user.id})`);
-  if (filters.contains) activeFilters.push(`Contains: ${filters.contains}`);
-  if (filters.botsOnly) activeFilters.push('Bots only');
-  if (filters.attachmentsOnly) activeFilters.push('Attachments only');
-  if (filters.linksOnly) activeFilters.push('Links only');
-
-  return activeFilters.length > 0 ? activeFilters.join('\n') : 'None';
+function buildSuccessEmbed({ deletedCount, scannedAmount, reason, moderator, channelId }) {
+  return new EmbedBuilder()
+    .setColor(EMBED_COLOURS.success)
+    .setTitle('✅ Purge Complete')
+    .addFields(
+      {
+        name: '🗑️ Deleted',
+        value: `${deletedCount} message${deletedCount === 1 ? '' : 's'}`,
+        inline: true
+      },
+      {
+        name: '🔎 Scanned',
+        value: `${scannedAmount} recent messages`,
+        inline: true
+      },
+      {
+        name: '📍 Channel',
+        value: `<#${channelId}>`,
+        inline: false
+      },
+      {
+        name: '👤 Requested by',
+        value: getUserDisplayName(moderator),
+        inline: true
+      },
+      {
+        name: '📝 Reason',
+        value: reason,
+        inline: false
+      }
+    );
 }
 
-function buildPreviewText(messages) {
-  const previewMessages = messages.slice(0, 5);
-
-  const preview = previewMessages.map((message) => {
-    const author = message.author?.tag || 'Unknown user';
-    const content = message.content?.trim() || '[No text content]';
-    const shortenedContent = content.length > 80 ? `${content.slice(0, 77)}...` : content;
-
-    return `**${author}**\n${shortenedContent}`;
-  });
-
-  const remaining = messages.length - previewMessages.length;
-
-  if (remaining > 0) {
-    preview.push(`+${remaining} more message${remaining === 1 ? '' : 's'}...`);
-  }
-
-  return preview.join('\n\n');
+function buildCancelledEmbed() {
+  return new EmbedBuilder()
+    .setColor(EMBED_COLOURS.cancelled)
+    .setTitle('❌ Purge Cancelled')
+    .setDescription('No messages were deleted.');
 }
 
 function buildConfirmRow(confirmationId, deleteCount, disabled) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`confirm_${confirmationId}`)
-      .setLabel(`Delete ${deleteCount} Messages`)
+      .setLabel(`🗑️ Delete ${deleteCount} Messages`)
       .setStyle(ButtonStyle.Danger)
       .setDisabled(disabled),
     new ButtonBuilder()
@@ -281,11 +336,77 @@ function buildConfirmRow(confirmationId, deleteCount, disabled) {
   );
 }
 
-function buildSuccessMessage({ deletedCount, scannedAmount, reason }) {
-  return (
-    `✅ **Purge Complete**\n\n` +
-    `🗑️ **Deleted**\n${deletedCount} message${deletedCount === 1 ? '' : 's'}\n\n` +
-    `🔎 **Scanned**\n${scannedAmount} recent messages\n\n` +
-    `📝 **Reason**\n${reason}`
-  );
+function buildFiltersText(filters) {
+  const activeFilters = [];
+
+  if (filters.user) {
+    activeFilters.push(`User: ${filters.user.displayName} (${filters.user.id})`);
+  }
+
+  if (filters.contains) {
+    activeFilters.push(`Contains: "${filters.contains}"`);
+  }
+
+  if (filters.botsOnly) {
+    activeFilters.push('Bots only');
+  }
+
+  if (filters.attachmentsOnly) {
+    activeFilters.push('Attachments only');
+  }
+
+  if (filters.linksOnly) {
+    activeFilters.push('Links only');
+  }
+
+  return activeFilters.length > 0 ? activeFilters.join('\n') : 'None';
+}
+
+function buildPreviewText(messages) {
+  const previewMessages = messages.slice(0, 5);
+
+  const preview = previewMessages.map((message) => {
+    const author = getUserDisplayName(message.author);
+    const content = getPreviewContent(message);
+
+    return `**${author}**\n> ${content}`;
+  });
+
+  const remaining = messages.length - previewMessages.length;
+
+  if (remaining > 0) {
+    preview.push(`…and ${remaining} more message${remaining === 1 ? '' : 's'}`);
+  }
+
+  return preview.join('\n\n');
+}
+
+function getPreviewContent(message) {
+  const text = message.content?.trim();
+
+  if (text) {
+    return shortenText(text, 80);
+  }
+
+  if (message.attachments?.size > 0) {
+    return '[Attachment]';
+  }
+
+  if (message.embeds?.length > 0) {
+    return '[Embed]';
+  }
+
+  if (message.stickers?.size > 0) {
+    return '[Sticker]';
+  }
+
+  return '[No text content]';
+}
+
+function shortenText(text, maxLength) {
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
+function getUserDisplayName(user) {
+  return user?.globalName || user?.displayName || user?.username || user?.tag || 'Unknown user';
 }
