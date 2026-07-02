@@ -63,8 +63,8 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
       inline: true
     },
     {
-      name: '🔍 Change',
-      value: formatDiff(before, after),
+      name: '📝 Changes',
+      value: formatHighlightedChange(before, after),
       inline: false
     }
   ];
@@ -83,8 +83,14 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
     .setColor(EMBED_COLOUR)
     .setTitle('✏️ Message Edited')
     .addFields(fields)
-    .setFooter({ text: `Message ID: ${newMessage.id}` })
+    .setFooter({ text: `🆔 Message ID: ${newMessage.id}` })
     .setTimestamp();
+
+  const firstImage = getFirstImageAttachment(newMessage);
+
+  if (firstImage) {
+    embed.setImage(firstImage);
+  }
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -103,16 +109,65 @@ function getDisplayName(message) {
   return message.member?.displayName ?? message.author.globalName ?? message.author.username;
 }
 
-function formatDiff(before, after) {
-  const beforeTrimmed = shortenText(before || '[No text content]', MAX_CONTENT_LENGTH / 2);
-  const afterTrimmed = shortenText(after || '[No text content]', MAX_CONTENT_LENGTH / 2);
+function formatHighlightedChange(before, after) {
+  const beforeText = shortenText(before || '[No text content]', MAX_CONTENT_LENGTH / 2);
+  const afterText = shortenText(after || '[No text content]', MAX_CONTENT_LENGTH / 2);
 
-  return (
-    '```diff\n' +
-    `- ${beforeTrimmed}\n` +
-    `+ ${afterTrimmed}\n` +
-    '```'
-  );
+  const { beforeHighlighted, afterHighlighted } = highlightChangedWords(beforeText, afterText);
+
+  return `**Before**\n${beforeHighlighted}\n\n**After**\n${afterHighlighted}`;
+}
+
+function highlightChangedWords(before, after) {
+  const beforeWords = before.split(/\s+/);
+  const afterWords = after.split(/\s+/);
+
+  let start = 0;
+
+  while (
+    start < beforeWords.length &&
+    start < afterWords.length &&
+    beforeWords[start] === afterWords[start]
+  ) {
+    start++;
+  }
+
+  let beforeEnd = beforeWords.length - 1;
+  let afterEnd = afterWords.length - 1;
+
+  while (
+    beforeEnd >= start &&
+    afterEnd >= start &&
+    beforeWords[beforeEnd] === afterWords[afterEnd]
+  ) {
+    beforeEnd--;
+    afterEnd--;
+  }
+
+  const beforeHighlighted = beforeWords
+    .map((word, index) => {
+      if (index >= start && index <= beforeEnd) {
+        return `~~**${word}**~~`;
+      }
+
+      return word;
+    })
+    .join(' ');
+
+  const afterHighlighted = afterWords
+    .map((word, index) => {
+      if (index >= start && index <= afterEnd) {
+        return `**${word}**`;
+      }
+
+      return word;
+    })
+    .join(' ');
+
+  return {
+    beforeHighlighted,
+    afterHighlighted
+  };
 }
 
 function formatAttachments(message) {
@@ -124,6 +179,19 @@ function formatAttachments(message) {
     .map((attachment) => attachment.url)
     .join('\n')
     .slice(0, MAX_CONTENT_LENGTH);
+}
+
+function getFirstImageAttachment(message) {
+  if (!message.attachments || message.attachments.size === 0) {
+    return null;
+  }
+
+  const imageAttachment = [...message.attachments.values()].find((attachment) => {
+    const contentType = attachment.contentType || '';
+    return contentType.startsWith('image/');
+  });
+
+  return imageAttachment?.url ?? null;
 }
 
 function shortenText(text, maxLength) {
