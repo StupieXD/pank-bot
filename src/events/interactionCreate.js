@@ -18,7 +18,7 @@ export async function execute(interaction) {
       interaction.customId.startsWith('confirm_purge_') ||
       interaction.customId.startsWith('cancel_purge_')
     ) {
-      await purgeCommand.handlePurgeButton(interaction);
+      await purgeCommand.handleButton(interaction);
     }
   }
 }
