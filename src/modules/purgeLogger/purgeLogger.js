@@ -1,12 +1,21 @@
 import { AttachmentBuilder, AuditLogEvent } from 'discord.js';
 import { findRecentPurgeAction } from '../../services/purgeContext.js';
-import { getCachedMessage, deleteCachedMessage } from '../../utils/messageCache.js';
+import {
+  getCachedMessage,
+  deleteCachedMessage
+} from '../../utils/messageCache.js';
 import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 import { config } from '../../config/config.js';
 
 export async function handleBulkPurge(messages, channel, client) {
-  const logChannel = await client.channels.fetch(config.purgeLogChannelId).catch(() => null);
-  if (!logChannel) return console.log('❌ Could not find purge log channel.');
+  const logChannel = await client.channels
+    .fetch(config.purgeLogChannelId)
+    .catch(() => null);
+
+  if (!logChannel) {
+    console.log('❌ Could not find purge log channel.');
+    return;
+  }
 
   const auditEntry = channel.guild
     ? await waitForAuditLogEntry({
@@ -31,21 +40,38 @@ export async function handleBulkPurge(messages, channel, client) {
   });
 
   const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
+  const filters = purgeAction?.filters;
 
   let loggedCount = 0;
   let uncachedCount = 0;
+
   const lines = [];
 
   lines.push('PURGE LOG');
+  lines.push('');
   lines.push(`Channel: #${channel.name} (${channel.id})`);
   lines.push(`Deleted messages: ${messages.size}`);
+  lines.push(`Cached messages logged: 0`);
+  lines.push(`Uncached messages: 0`);
+  lines.push(`Moderator: ${moderator ? `${moderator.tag} (${moderator.id})` : 'Unknown'}`);
   lines.push(`Reason: ${purgeAction?.reason ?? 'No reason provided'}`);
-  lines.push(`Requested amount: ${purgeAction?.filters?.requestedAmount ?? 'Unknown'}`);
-  lines.push(`User filter: ${purgeAction?.filters?.user ? `${purgeAction.filters.user.username} (${purgeAction.filters.user.id})` : 'None'}`);
-  lines.push(`Contains filter: ${purgeAction?.filters?.contains ?? 'None'}`);
-  lines.push(`Bots only: ${purgeAction?.filters?.botsOnly ? 'Yes' : 'No'}`);
+  lines.push(`Time: ${new Date().toISOString()}`);
+  lines.push('');
+  lines.push('Filters:');
+  lines.push(`- Requested amount: ${filters?.requestedAmount ?? 'Unknown'}`);
+  lines.push(
+    `- User: ${filters?.user ? `${filters.user.tag ?? filters.user.username} (${filters.user.id})` : 'Any'}`
+  );
+  lines.push(`- Contains: ${filters?.contains ?? 'None'}`);
+  lines.push(`- Bots only: ${filters?.botsOnly ? 'Yes' : 'No'}`);
+  lines.push(`- Attachments only: ${filters?.attachmentsOnly ? 'Yes' : 'No'}`);
+  lines.push(`- Links only: ${filters?.linksOnly ? 'Yes' : 'No'}`);
 
-  for (const deletedMessage of [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp)) {
+  const sortedMessages = [...messages.values()].sort(
+    (a, b) => a.createdTimestamp - b.createdTimestamp
+  );
+
+  for (const deletedMessage of sortedMessages) {
     const cached = getCachedMessage(deletedMessage.id);
 
     lines.push('');
@@ -59,6 +85,7 @@ export async function handleBulkPurge(messages, channel, client) {
     }
 
     loggedCount++;
+
     lines.push(`User: ${cached.username}`);
     lines.push(`Display name: ${cached.displayName}`);
     lines.push(`User ID: ${cached.userId}`);
@@ -68,16 +95,17 @@ export async function handleBulkPurge(messages, channel, client) {
 
     if (cached.attachments.length > 0) {
       lines.push('Attachments:');
-      cached.attachments.forEach((url) => lines.push(`- ${url}`));
+
+      cached.attachments.forEach((url) => {
+        lines.push(`- ${url}`);
+      });
     }
 
     deleteCachedMessage(deletedMessage.id);
   }
 
-  lines.splice(3, 0, `Cached messages logged: ${loggedCount}`);
-  lines.splice(4, 0, `Uncached messages: ${uncachedCount}`);
-  lines.splice(5, 0, `Moderator: ${moderator ? `${moderator.tag} (${moderator.id})` : 'Unknown'}`);
-  lines.splice(6, 0, `Time: ${new Date().toISOString()}`);
+  lines[4] = `Cached messages logged: ${loggedCount}`;
+  lines[5] = `Uncached messages: ${uncachedCount}`;
 
   const logText = lines.join('\n');
 
