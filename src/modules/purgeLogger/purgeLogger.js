@@ -41,6 +41,9 @@ export async function handleBulkPurge(messages, channel, client) {
 
   const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
   const filters = purgeAction?.filters;
+  const archivedMessageMap = new Map(
+    (purgeAction?.archivedMessages ?? []).map((message) => [message.id, message])
+  );
 
   let loggedCount = 0;
   let uncachedCount = 0;
@@ -51,8 +54,8 @@ export async function handleBulkPurge(messages, channel, client) {
   lines.push('');
   lines.push(`Channel: #${channel.name} (${channel.id})`);
   lines.push(`Deleted messages: ${messages.size}`);
-  lines.push(`Cached messages logged: 0`);
-  lines.push(`Uncached messages: 0`);
+  lines.push('Archived messages logged: 0');
+  lines.push('Unarchived messages: 0');
   lines.push(`Moderator: ${moderator ? `${moderator.tag} (${moderator.id})` : 'Unknown'}`);
   lines.push(`Reason: ${purgeAction?.reason ?? 'No reason provided'}`);
   lines.push(`Time: ${new Date().toISOString()}`);
@@ -60,7 +63,11 @@ export async function handleBulkPurge(messages, channel, client) {
   lines.push('Filters:');
   lines.push(`- Requested amount: ${filters?.requestedAmount ?? 'Unknown'}`);
   lines.push(
-    `- User: ${filters?.user ? `${filters.user.tag ?? filters.user.username} (${filters.user.id})` : 'Any'}`
+    `- User: ${
+      filters?.user
+        ? `${filters.user.displayName ?? filters.user.tag ?? filters.user.username} (${filters.user.id})`
+        : 'Any'
+    }`
   );
   lines.push(`- Contains: ${filters?.contains ?? 'None'}`);
   lines.push(`- Bots only: ${filters?.botsOnly ? 'Yes' : 'No'}`);
@@ -72,7 +79,8 @@ export async function handleBulkPurge(messages, channel, client) {
   );
 
   for (const deletedMessage of sortedMessages) {
-    const cached = getCachedMessage(deletedMessage.id);
+    const archived = archivedMessageMap.get(deletedMessage.id);
+    const cached = archived ?? getCachedMessage(deletedMessage.id);
 
     lines.push('');
     lines.push('------------------------------');
@@ -80,7 +88,7 @@ export async function handleBulkPurge(messages, channel, client) {
     if (!cached) {
       uncachedCount++;
       lines.push(`Message ID: ${deletedMessage.id}`);
-      lines.push('Status: Not cached, so content and author details are unavailable.');
+      lines.push('Status: Not archived, so content and author details are unavailable.');
       continue;
     }
 
@@ -93,7 +101,7 @@ export async function handleBulkPurge(messages, channel, client) {
     lines.push(`Timestamp: ${cached.timestamp}`);
     lines.push(`Message: ${cached.content}`);
 
-    if (cached.attachments.length > 0) {
+    if (cached.attachments?.length > 0) {
       lines.push('Attachments:');
 
       cached.attachments.forEach((url) => {
@@ -104,8 +112,8 @@ export async function handleBulkPurge(messages, channel, client) {
     deleteCachedMessage(deletedMessage.id);
   }
 
-  lines[4] = `Cached messages logged: ${loggedCount}`;
-  lines[5] = `Uncached messages: ${uncachedCount}`;
+  lines[4] = `Archived messages logged: ${loggedCount}`;
+  lines[5] = `Unarchived messages: ${uncachedCount}`;
 
   const logText = lines.join('\n');
 
@@ -122,8 +130,8 @@ export async function handleBulkPurge(messages, channel, client) {
       content:
         `🧹 **Bulk purge detected in #${channel.name}**\n` +
         `Deleted messages: **${messages.size}**\n` +
-        `Cached messages logged: **${loggedCount}**\n` +
-        `Uncached messages: **${uncachedCount}**\n` +
+        `Archived messages logged: **${loggedCount}**\n` +
+        `Unarchived messages: **${uncachedCount}**\n` +
         `Moderator: **${moderator ? moderator.tag : 'Unknown'}**\n` +
         `Reason: **${purgeAction?.reason ?? 'No reason provided'}**\n` +
         `Full log attached.`,

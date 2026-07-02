@@ -6,7 +6,8 @@ export function rememberPurgeAction({
   moderator,
   amount,
   reason = 'No reason provided',
-  filters = {}
+  filters = {},
+  archivedMessages = []
 }) {
   recentPurgeActions.push({
     guildId,
@@ -15,6 +16,7 @@ export function rememberPurgeAction({
     amount,
     reason,
     filters,
+    archivedMessages,
     timestamp: Date.now()
   });
 }
