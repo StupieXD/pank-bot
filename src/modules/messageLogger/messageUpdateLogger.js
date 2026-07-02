@@ -8,7 +8,7 @@ import {
 import { config } from '../../config/config.js';
 
 const EMBED_COLOUR = 0xf1c40f;
-const MAX_CONTENT_LENGTH = 1000;
+const MAX_CONTENT_LENGTH = 900;
 
 export async function handleMessageUpdate(oldMessage, newMessage) {
   if (newMessage.author?.bot) return;
@@ -43,41 +43,46 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
     return;
   }
 
+  const fields = [
+    {
+      name: '👤 User',
+      value:
+        `Display name: ${getDisplayName(newMessage)}\n` +
+        `Username: ${newMessage.author.tag}\n` +
+        `ID: ${newMessage.author.id}`,
+      inline: false
+    },
+    {
+      name: '📍 Channel',
+      value: `<#${newMessage.channel.id}>`,
+      inline: true
+    },
+    {
+      name: '✏️ Edited',
+      value: `<t:${Math.floor(Date.now() / 1000)}:F>`,
+      inline: true
+    },
+    {
+      name: '🔍 Change',
+      value: formatDiff(before, after),
+      inline: false
+    }
+  ];
+
+  const attachments = formatAttachments(newMessage);
+
+  if (attachments) {
+    fields.push({
+      name: '📎 Attachments',
+      value: attachments,
+      inline: false
+    });
+  }
+
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
     .setTitle('✏️ Message Edited')
-    .addFields(
-      {
-        name: '👤 User',
-        value: `${getDisplayName(newMessage)}\n${newMessage.author.tag}\n${newMessage.author.id}`,
-        inline: false
-      },
-      {
-        name: '📍 Channel',
-        value: `<#${newMessage.channel.id}>`,
-        inline: true
-      },
-      {
-        name: '🕒 Edited At',
-        value: new Date().toISOString(),
-        inline: true
-      },
-      {
-        name: 'Before',
-        value: formatContent(before),
-        inline: false
-      },
-      {
-        name: 'After',
-        value: formatContent(after),
-        inline: false
-      },
-      {
-        name: '📎 Attachments',
-        value: formatAttachments(newMessage),
-        inline: false
-      }
-    )
+    .addFields(fields)
     .setFooter({ text: `Message ID: ${newMessage.id}` })
     .setTimestamp();
 
@@ -98,24 +103,29 @@ function getDisplayName(message) {
   return message.member?.displayName ?? message.author.globalName ?? message.author.username;
 }
 
-function formatContent(content) {
-  if (!content) return '[No text content]';
+function formatDiff(before, after) {
+  const beforeTrimmed = shortenText(before || '[No text content]', MAX_CONTENT_LENGTH / 2);
+  const afterTrimmed = shortenText(after || '[No text content]', MAX_CONTENT_LENGTH / 2);
 
-  const trimmed =
-    content.length > MAX_CONTENT_LENGTH
-      ? `${content.slice(0, MAX_CONTENT_LENGTH - 3)}...`
-      : content;
-
-  return `\`\`\`\n${trimmed}\n\`\`\``;
+  return (
+    '```diff\n' +
+    `- ${beforeTrimmed}\n` +
+    `+ ${afterTrimmed}\n` +
+    '```'
+  );
 }
 
 function formatAttachments(message) {
   if (!message.attachments || message.attachments.size === 0) {
-    return 'None';
+    return null;
   }
 
   return [...message.attachments.values()]
     .map((attachment) => attachment.url)
     .join('\n')
     .slice(0, MAX_CONTENT_LENGTH);
+}
+
+function shortenText(text, maxLength) {
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
 }
