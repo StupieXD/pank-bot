@@ -1,5 +1,5 @@
-import { findRecentPurgeAction } from '../../services/purgeContext.js';
 import { AttachmentBuilder, AuditLogEvent } from 'discord.js';
+import { findRecentPurgeAction } from '../../services/purgeContext.js';
 import { getCachedMessage, deleteCachedMessage } from '../../utils/messageCache.js';
 import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 import { config } from '../../config/config.js';
@@ -9,28 +9,28 @@ export async function handleBulkPurge(messages, channel, client) {
   if (!logChannel) return console.log('❌ Could not find purge log channel.');
 
   const auditEntry = channel.guild
-  ? await waitForAuditLogEntry({
-      guild: channel.guild,
-      type: AuditLogEvent.MessageBulkDelete,
-      match: (log) => {
-        const recent = Date.now() - log.createdTimestamp < 10000;
-        const sameChannel =
-  log.extra?.channel?.id === channel.id ||
-  log.extra?.channelId === channel.id ||
-  log.target?.id === channel.id;
+    ? await waitForAuditLogEntry({
+        guild: channel.guild,
+        type: AuditLogEvent.MessageBulkDelete,
+        match: (log) => {
+          const recent = Date.now() - log.createdTimestamp < 10000;
+          const sameChannel =
+            log.extra?.channel?.id === channel.id ||
+            log.extra?.channelId === channel.id ||
+            log.target?.id === channel.id;
 
-return recent && sameChannel;
-      }
-    })
-  : null;
+          return recent && sameChannel;
+        }
+      })
+    : null;
 
-const purgeAction = findRecentPurgeAction({
-  guildId: channel.guild?.id,
-  channelId: channel.id,
-  count: messages.size
-});
+  const purgeAction = findRecentPurgeAction({
+    guildId: channel.guild?.id,
+    channelId: channel.id,
+    count: messages.size
+  });
 
-const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
+  const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
 
   let loggedCount = 0;
   let uncachedCount = 0;
@@ -39,6 +39,11 @@ const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
   lines.push('PURGE LOG');
   lines.push(`Channel: #${channel.name} (${channel.id})`);
   lines.push(`Deleted messages: ${messages.size}`);
+  lines.push(`Reason: ${purgeAction?.reason ?? 'No reason provided'}`);
+  lines.push(`Requested amount: ${purgeAction?.filters?.requestedAmount ?? 'Unknown'}`);
+  lines.push(`User filter: ${purgeAction?.filters?.user ? `${purgeAction.filters.user.username} (${purgeAction.filters.user.id})` : 'None'}`);
+  lines.push(`Contains filter: ${purgeAction?.filters?.contains ?? 'None'}`);
+  lines.push(`Bots only: ${purgeAction?.filters?.botsOnly ? 'Yes' : 'No'}`);
 
   for (const deletedMessage of [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp)) {
     const cached = getCachedMessage(deletedMessage.id);
@@ -92,6 +97,7 @@ const moderator = purgeAction?.moderator ?? auditEntry?.executor ?? null;
         `Cached messages logged: **${loggedCount}**\n` +
         `Uncached messages: **${uncachedCount}**\n` +
         `Moderator: **${moderator ? moderator.tag : 'Unknown'}**\n` +
+        `Reason: **${purgeAction?.reason ?? 'No reason provided'}**\n` +
         `Full log attached.`,
       files: [file]
     });
