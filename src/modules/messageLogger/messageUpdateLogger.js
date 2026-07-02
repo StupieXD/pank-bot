@@ -43,31 +43,33 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
     return;
   }
 
-  const fields = [
-    {
-      name: '👤 User',
-      value:
-        `Display name: ${getDisplayName(newMessage)}\n` +
-        `Username: ${newMessage.author.tag}\n` +
-        `ID: ${newMessage.author.id}`,
-      inline: false
-    },
-    {
-      name: '📍 Channel',
-      value: `<#${newMessage.channel.id}>`,
-      inline: true
-    },
-    {
-      name: '✏️ Edited',
-      value: `<t:${Math.floor(Date.now() / 1000)}:F>`,
-      inline: true
-    },
-    {
-      name: '📝 Changes',
-      value: formatHighlightedChange(before, after),
-      inline: false
-    }
-  ];
+const editedTimestamp = Math.floor(newMessage.editedTimestamp / 1000);
+
+const fields = [
+  {
+    name: '👤 User',
+    value:
+      `Display name: ${getDisplayName(newMessage)}\n` +
+      `Username: ${newMessage.author.tag}\n` +
+      `ID: ${newMessage.author.id}`,
+    inline: false
+  },
+  {
+    name: '📍 Channel',
+    value: `<#${newMessage.channel.id}>`,
+    inline: true
+  },
+  {
+    name: '✏️ Edited',
+    value: `<t:${editedTimestamp}:R> (<t:${editedTimestamp}:F>)`,
+    inline: true
+  },
+  {
+    name: '📝 Changes',
+    value: formatHighlightedChange(before, after),
+    inline: false
+  }
+];
 
   const attachments = formatAttachments(newMessage);
 
