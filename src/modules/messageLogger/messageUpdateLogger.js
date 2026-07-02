@@ -7,7 +7,8 @@ import {
 
 import { config } from '../../config/config.js';
 
-const MAX_FIELD_LENGTH = 1000;
+const EMBED_COLOUR = 0xf1c40f;
+const MAX_CONTENT_LENGTH = 1000;
 
 export async function handleMessageUpdate(oldMessage, newMessage) {
   if (newMessage.author?.bot) return;
@@ -33,9 +34,7 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
 
   if (before === after) return;
 
-  const client = newMessage.client;
-
-  const logChannel = await client.channels
+  const logChannel = await newMessage.client.channels
     .fetch(config.messageLogChannelId)
     .catch(() => null);
 
@@ -45,18 +44,13 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
   }
 
   const embed = new EmbedBuilder()
-    .setColor(0xf1c40f)
+    .setColor(EMBED_COLOUR)
     .setTitle('✏️ Message Edited')
     .addFields(
       {
         name: '👤 User',
-        value: `${newMessage.author.tag}\n${newMessage.author.id}`,
+        value: `${getDisplayName(newMessage)}\n${newMessage.author.tag}\n${newMessage.author.id}`,
         inline: false
-      },
-      {
-        name: '🏷️ Display Name',
-        value: newMessage.member?.displayName ?? newMessage.author.username,
-        inline: true
       },
       {
         name: '📍 Channel',
@@ -66,7 +60,7 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
       {
         name: '🕒 Edited At',
         value: new Date().toISOString(),
-        inline: false
+        inline: true
       },
       {
         name: 'Before',
@@ -100,12 +94,17 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
   });
 }
 
+function getDisplayName(message) {
+  return message.member?.displayName ?? message.author.globalName ?? message.author.username;
+}
+
 function formatContent(content) {
   if (!content) return '[No text content]';
 
-  const trimmed = content.length > MAX_FIELD_LENGTH
-    ? `${content.slice(0, MAX_FIELD_LENGTH - 3)}...`
-    : content;
+  const trimmed =
+    content.length > MAX_CONTENT_LENGTH
+      ? `${content.slice(0, MAX_CONTENT_LENGTH - 3)}...`
+      : content;
 
   return `\`\`\`\n${trimmed}\n\`\`\``;
 }
@@ -118,5 +117,5 @@ function formatAttachments(message) {
   return [...message.attachments.values()]
     .map((attachment) => attachment.url)
     .join('\n')
-    .slice(0, MAX_FIELD_LENGTH);
+    .slice(0, MAX_CONTENT_LENGTH);
 }
