@@ -25,7 +25,7 @@ export async function executePurge(interaction) {
 
   const amount = interaction.options.getInteger('amount');
   const targetUser = interaction.options.getUser('user');
-  const reason = interaction.options.getString('reason') || 'No reason provided';
+  const reason = interaction.options.getString('reason') || null;
   const contains = interaction.options.getString('contains');
   const botsOnly = interaction.options.getBoolean('bots_only') || false;
   const attachmentsOnly = interaction.options.getBoolean('attachments_only') || false;
@@ -34,13 +34,10 @@ export async function executePurge(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const fetchedMessages = await interaction.channel.messages.fetch({ limit: amount });
-
   let messagesToDelete = [...fetchedMessages.values()];
 
   if (targetUser) {
-    messagesToDelete = messagesToDelete.filter(
-      (message) => message.author.id === targetUser.id
-    );
+    messagesToDelete = messagesToDelete.filter((message) => message.author.id === targetUser.id);
   }
 
   if (contains) {
@@ -59,9 +56,7 @@ export async function executePurge(interaction) {
   }
 
   if (linksOnly) {
-    messagesToDelete = messagesToDelete.filter((message) =>
-      LINK_REGEX.test(message.content)
-    );
+    messagesToDelete = messagesToDelete.filter((message) => LINK_REGEX.test(message.content));
   }
 
   const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
@@ -82,7 +77,8 @@ export async function executePurge(interaction) {
     moderator: interaction.user,
     messagesToDelete,
     scannedAmount: amount,
-    reason,
+    reason: reason || 'No reason provided',
+    displayReason: reason,
     filters: {
       requestedAmount: amount,
       user: targetUser
@@ -116,7 +112,7 @@ export async function executePurge(interaction) {
     content: buildSuccessMessage({
       deletedCount,
       scannedAmount: amount,
-      reason
+      reason: purgeData.reason
     })
   });
 }
@@ -127,9 +123,7 @@ export async function handlePurgeButton(interaction) {
 
   if (!isConfirm && !isCancel) return;
 
-  const confirmationId = interaction.customId
-    .replace('confirm_', '')
-    .replace('cancel_', '');
+  const confirmationId = interaction.customId.replace('confirm_', '').replace('cancel_', '');
 
   const purgeData = getPendingPurge(confirmationId);
 
@@ -154,9 +148,7 @@ export async function handlePurgeButton(interaction) {
     return interaction.update({
       content: '❌ **Purge Cancelled**\n\nNo messages were deleted.',
       embeds: [],
-      components: [
-        buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)
-      ]
+      components: [buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)]
     });
   }
 
@@ -171,9 +163,7 @@ export async function handlePurgeButton(interaction) {
       reason: purgeData.reason
     }),
     embeds: [],
-    components: [
-      buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)
-    ]
+    components: [buildConfirmRow(confirmationId, purgeData.messagesToDelete.length, true)]
   });
 }
 
@@ -193,44 +183,87 @@ async function runPurge(purgeData) {
 }
 
 function buildConfirmEmbed(purgeData) {
-  const filters = purgeData.filters;
+  const fields = [
+    {
+      name: '📍 Channel',
+      value: `<#${purgeData.channelId}>`,
+      inline: false
+    },
+    {
+      name: '🗑️ Messages Found',
+      value: String(purgeData.messagesToDelete.length),
+      inline: true
+    },
+    {
+      name: '👤 Requested by',
+      value: `${purgeData.moderator.tag}`,
+      inline: true
+    }
+  ];
+
+  if (purgeData.displayReason) {
+    fields.push({
+      name: '📝 Reason',
+      value: purgeData.displayReason,
+      inline: false
+    });
+  }
+
+  fields.push({
+    name: '🔍 Filters',
+    value: buildFiltersText(purgeData.filters),
+    inline: false
+  });
+
+  fields.push({
+    name: '👀 Preview',
+    value: buildPreviewText(purgeData.messagesToDelete),
+    inline: false
+  });
+
+  fields.push({
+    name: '⚠️ Note',
+    value: 'Messages older than 14 days cannot be bulk deleted.',
+    inline: false
+  });
 
   return new EmbedBuilder()
     .setTitle('⚠️ Confirm Purge')
-    .setDescription('Please review this purge before confirming.')
-    .addFields(
-      {
-        name: '📍 Channel',
-        value: `<#${purgeData.channelId}>`,
-        inline: false
-      },
-      {
-        name: '🗑️ Messages to delete',
-        value: String(purgeData.messagesToDelete.length),
-        inline: true
-      },
-      {
-        name: '🔎 Messages scanned',
-        value: String(purgeData.scannedAmount),
-        inline: true
-      },
-      {
-        name: '📝 Reason',
-        value: purgeData.reason,
-        inline: false
-      },
-      {
-        name: '🔍 Filters',
-        value:
-          `User: ${filters.user ? `${filters.user.tag} (${filters.user.id})` : 'Any'}\n` +
-          `Contains: ${filters.contains ?? 'None'}\n` +
-          `Bots only: ${filters.botsOnly ? 'Yes' : 'No'}\n` +
-          `Attachments only: ${filters.attachmentsOnly ? 'Yes' : 'No'}\n` +
-          `Links only: ${filters.linksOnly ? 'Yes' : 'No'}`,
-        inline: false
-      }
-    )
-    .setFooter({ text: 'This confirmation expires in 30 seconds.' });
+    .setDescription('Please review this purge before continuing.')
+    .addFields(fields)
+    .setFooter({ text: '⏳ This confirmation expires in 30 seconds.' });
+}
+
+function buildFiltersText(filters) {
+  const activeFilters = [];
+
+  if (filters.user) activeFilters.push(`User: ${filters.user.tag} (${filters.user.id})`);
+  if (filters.contains) activeFilters.push(`Contains: ${filters.contains}`);
+  if (filters.botsOnly) activeFilters.push('Bots only');
+  if (filters.attachmentsOnly) activeFilters.push('Attachments only');
+  if (filters.linksOnly) activeFilters.push('Links only');
+
+  return activeFilters.length > 0 ? activeFilters.join('\n') : 'None';
+}
+
+function buildPreviewText(messages) {
+  const previewMessages = messages.slice(0, 5);
+
+  const preview = previewMessages.map((message) => {
+    const author = message.author?.tag || 'Unknown user';
+    const content = message.content?.trim() || '[No text content]';
+    const shortenedContent = content.length > 80 ? `${content.slice(0, 77)}...` : content;
+
+    return `**${author}**\n${shortenedContent}`;
+  });
+
+  const remaining = messages.length - previewMessages.length;
+
+  if (remaining > 0) {
+    preview.push(`+${remaining} more message${remaining === 1 ? '' : 's'}...`);
+  }
+
+  return preview.join('\n\n');
 }
 
 function buildConfirmRow(confirmationId, deleteCount, disabled) {
