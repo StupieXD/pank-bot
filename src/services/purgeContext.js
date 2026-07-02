@@ -1,11 +1,20 @@
 const recentPurgeActions = [];
 
-export function rememberPurgeAction({ guildId, channelId, moderator, amount }) {
+export function rememberPurgeAction({
+  guildId,
+  channelId,
+  moderator,
+  amount,
+  reason = 'No reason provided',
+  filters = {}
+}) {
   recentPurgeActions.push({
     guildId,
     channelId,
     moderator,
     amount,
+    reason,
+    filters,
     timestamp: Date.now()
   });
 }
@@ -17,7 +26,7 @@ export function findRecentPurgeAction({ guildId, channelId, count }) {
     const recent = now - action.timestamp < 15000;
     const sameGuild = action.guildId === guildId;
     const sameChannel = action.channelId === channelId;
-    const similarCount = !count || action.amount === count;
+    const similarCount = !count || action.amount === count || count <= action.amount;
 
     return recent && sameGuild && sameChannel && similarCount;
   });
