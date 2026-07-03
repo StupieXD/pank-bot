@@ -87,6 +87,16 @@ export async function handleMessageDelete(message) {
     }
   ];
 
+  const replyText = formatReplyContext(messageData.reply);
+
+  if (replyText) {
+    fields.push({
+      name: '↩️ Replying To',
+      value: replyText,
+      inline: false
+    });
+  }
+
   const attachmentsText = formatAttachments(messageData.attachments);
 
   if (attachmentsText) {
@@ -108,12 +118,6 @@ export async function handleMessageDelete(message) {
     .setTitle('🗑️ Message Deleted')
     .addFields(fields)
     .setFooter({ text: `🆔 Message ID: ${messageData.id}` });
-
-  const firstImage = getFirstImageAttachment(messageData.attachments);
-
-  if (firstImage) {
-    embed.setImage(firstImage);
-  }
 
   await logChannel.send({
     embeds: [embed]
@@ -141,7 +145,36 @@ function buildMessageDataFromMessage(message) {
       name: attachment.name,
       contentType: attachment.contentType
     })),
+    reply: buildReplyData(message),
     url: message.url
+  };
+}
+
+function buildReplyData(message) {
+  const reference = message.reference;
+
+  if (!reference?.messageId) return null;
+
+  const repliedMessage = message.channel?.messages?.cache?.get(reference.messageId);
+
+  if (!repliedMessage) {
+    return {
+      unavailable: true,
+      messageId: reference.messageId
+    };
+  }
+
+  return {
+    unavailable: false,
+    messageId: repliedMessage.id,
+    userId: repliedMessage.author?.id ?? null,
+    displayName:
+      repliedMessage.member?.displayName ??
+      repliedMessage.author?.globalName ??
+      repliedMessage.author?.username ??
+      'Unknown user',
+    username: repliedMessage.author?.tag ?? 'Unknown user',
+    content: repliedMessage.content?.trim() || '[No text content]'
   };
 }
 
@@ -151,7 +184,7 @@ function formatDeletedBy(deletedBy, messageData) {
       `<@${deletedBy.id}>\n` +
       `Display name: ${deletedBy.globalName ?? deletedBy.username}\n` +
       `Username: ${deletedBy.tag}\n\n` +
-      `Moderator deletion`
+      `**Moderator deletion**`
     );
   }
 
@@ -160,11 +193,26 @@ function formatDeletedBy(deletedBy, messageData) {
       `<@${messageData.userId}>\n` +
       `Display name: ${messageData.displayName}\n` +
       `Username: ${messageData.username}\n\n` +
-      `Self deleted`
+      `**Self deleted**`
     );
   }
 
   return 'Unknown\nNo audit log entry found';
+}
+
+function formatReplyContext(reply) {
+  if (!reply) return null;
+
+  if (reply.unavailable) {
+    return `Deleted or unavailable message\nMessage ID: ${reply.messageId}`;
+  }
+
+  return (
+    `${reply.userId ? `<@${reply.userId}>` : reply.displayName}\n` +
+    `Display name: ${reply.displayName}\n` +
+    `Username: ${reply.username}\n\n` +
+    formatContent(reply.content)
+  );
 }
 
 function formatContent(content) {
@@ -177,7 +225,7 @@ function formatContent(content) {
 
   return trimmed
     .split('\n')
-    .map((line) => `> ${line || ' '}`)
+    .map((line) => `> *${escapeItalics(line || ' ')}*`)
     .join('\n');
 }
 
@@ -188,22 +236,33 @@ function formatAttachments(attachments = []) {
     .map((attachment) => {
       const name = attachment.name || 'Attachment';
       const url = attachment.url ?? attachment;
+      const icon = getAttachmentIcon(attachment);
 
-      return `• [${name}](${url})`;
+      return `${icon} [${name}](${url})`;
     })
     .join('\n')
     .slice(0, MAX_CONTENT_LENGTH);
 }
 
-function getFirstImageAttachment(attachments = []) {
-  if (!attachments || attachments.length === 0) return null;
+function getAttachmentIcon(attachment) {
+  const contentType = attachment.contentType || '';
+  const url = attachment.url || attachment || '';
 
-  const imageAttachment = attachments.find((attachment) => {
-    const contentType = attachment.contentType || '';
-    const url = attachment.url || attachment;
+  if (contentType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(url)) {
+    return '🖼️';
+  }
 
-    return contentType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(url);
-  });
+  if (contentType.startsWith('video/') || /\.(mp4|mov|webm|mkv)$/i.test(url)) {
+    return '🎥';
+  }
 
-  return imageAttachment?.url ?? imageAttachment ?? null;
+  if (contentType.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(url)) {
+    return '🎵';
+  }
+
+  return '📄';
+}
+
+function escapeItalics(text) {
+  return text.replace(/\*/g, '\\*');
 }
