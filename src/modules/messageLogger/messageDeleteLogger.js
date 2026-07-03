@@ -44,8 +44,7 @@ export async function handleMessageDelete(message) {
             log.target?.id === messageData.userId ||
             log.targetId === messageData.userId;
 
-          const singleDelete =
-            !log.extra?.count || log.extra.count === 1;
+          const singleDelete = !log.extra?.count || log.extra.count === 1;
 
           return recent && sameChannel && sameTarget && singleDelete;
         }
@@ -61,9 +60,9 @@ export async function handleMessageDelete(message) {
     {
       name: '👤 User',
       value:
+        `<@${messageData.userId}>\n` +
         `Display name: ${messageData.displayName}\n` +
-        `Username: ${messageData.username}\n` +
-        `ID: ${messageData.userId}`,
+        `Username: ${messageData.username}`,
       inline: false
     },
     {
@@ -84,7 +83,9 @@ export async function handleMessageDelete(message) {
     {
       name: '🛡️ Deleted By',
       value: deletedBy
-        ? `${deletedBy.tag}\n${deletedBy.id}`
+        ? `<@${deletedBy.id}>\n` +
+          `Display name: ${deletedBy.globalName ?? deletedBy.username}\n` +
+          `Username: ${deletedBy.tag}`
         : 'Author or unknown\nNo audit log entry found',
       inline: false
     }
