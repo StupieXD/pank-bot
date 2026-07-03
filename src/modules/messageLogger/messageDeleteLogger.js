@@ -82,11 +82,7 @@ export async function handleMessageDelete(message) {
     },
     {
       name: '🛡️ Deleted By',
-      value: deletedBy
-        ? `<@${deletedBy.id}>\n` +
-          `Display name: ${deletedBy.globalName ?? deletedBy.username}\n` +
-          `Username: ${deletedBy.tag}`
-        : 'Author or unknown\nNo audit log entry found',
+      value: formatDeletedBy(deletedBy, messageData),
       inline: false
     }
   ];
@@ -149,8 +145,30 @@ function buildMessageDataFromMessage(message) {
   };
 }
 
+function formatDeletedBy(deletedBy, messageData) {
+  if (deletedBy) {
+    return (
+      `<@${deletedBy.id}>\n` +
+      `Display name: ${deletedBy.globalName ?? deletedBy.username}\n` +
+      `Username: ${deletedBy.tag}\n\n` +
+      `Moderator deletion`
+    );
+  }
+
+  if (messageData.userId && messageData.userId !== 'Unknown user ID') {
+    return (
+      `<@${messageData.userId}>\n` +
+      `Display name: ${messageData.displayName}\n` +
+      `Username: ${messageData.username}\n\n` +
+      `Self deleted`
+    );
+  }
+
+  return 'Unknown\nNo audit log entry found';
+}
+
 function formatContent(content) {
-  if (!content) return '[No text content]';
+  if (!content || content === '[No text content]') return '> *(No text content)*';
 
   const trimmed =
     content.length > MAX_CONTENT_LENGTH
@@ -159,7 +177,7 @@ function formatContent(content) {
 
   return trimmed
     .split('\n')
-    .map((line) => `> ${line}`)
+    .map((line) => `> ${line || ' '}`)
     .join('\n');
 }
 
@@ -168,10 +186,10 @@ function formatAttachments(attachments = []) {
 
   return attachments
     .map((attachment) => {
-      const name = attachment.name ? `${attachment.name}: ` : '';
+      const name = attachment.name || 'Attachment';
       const url = attachment.url ?? attachment;
 
-      return `${name}${url}`;
+      return `• [${name}](${url})`;
     })
     .join('\n')
     .slice(0, MAX_CONTENT_LENGTH);
