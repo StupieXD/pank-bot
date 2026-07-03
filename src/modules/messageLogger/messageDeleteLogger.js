@@ -1,10 +1,11 @@
-import { EmbedBuilder } from 'discord.js';
+import { AuditLogEvent, EmbedBuilder } from 'discord.js';
 
 import { config } from '../../config/config.js';
 import {
   getCachedMessage,
   deleteCachedMessage
 } from '../../utils/messageCache.js';
+import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 
 const EMBED_COLOUR = 0xe74c3c;
 const MAX_CONTENT_LENGTH = 900;
@@ -14,9 +15,7 @@ export async function handleMessageDelete(message) {
 
   const cached = getCachedMessage(message.id);
 
-  if (!cached && message.partial) {
-    return;
-  }
+  if (!cached && message.partial) return;
 
   const messageData = cached ?? buildMessageDataFromMessage(message);
 
@@ -29,7 +28,34 @@ export async function handleMessageDelete(message) {
     return;
   }
 
+  const auditEntry = message.guild
+    ? await waitForAuditLogEntry({
+        guild: message.guild,
+        type: AuditLogEvent.MessageDelete,
+        timeout: 3000,
+        match: (log) => {
+          const recent = Date.now() - log.createdTimestamp < 10000;
+
+          const sameChannel =
+            log.extra?.channel?.id === messageData.channelId ||
+            log.extra?.channelId === messageData.channelId;
+
+          const sameTarget =
+            log.target?.id === messageData.userId ||
+            log.targetId === messageData.userId;
+
+          const singleDelete =
+            !log.extra?.count || log.extra.count === 1;
+
+          return recent && sameChannel && sameTarget && singleDelete;
+        }
+      })
+    : null;
+
+  const deletedBy = auditEntry?.executor ?? null;
+
   const deletedTimestamp = Math.floor(Date.now() / 1000);
+  const originalTimestamp = Math.floor(new Date(messageData.timestamp).getTime() / 1000);
 
   const fields = [
     {
@@ -46,13 +72,20 @@ export async function handleMessageDelete(message) {
       inline: true
     },
     {
-      name: '🗑️ Deleted',
+      name: '📝 Originally Sent',
+      value: `<t:${originalTimestamp}:R> (<t:${originalTimestamp}:F>)`,
+      inline: true
+    },
+    {
+      name: '🗑️ Deleted At',
       value: `<t:${deletedTimestamp}:R> (<t:${deletedTimestamp}:F>)`,
       inline: true
     },
     {
-      name: '💬 Message',
-      value: formatContent(messageData.content),
+      name: '🛡️ Deleted By',
+      value: deletedBy
+        ? `${deletedBy.tag}\n${deletedBy.id}`
+        : 'Author or unknown\nNo audit log entry found',
       inline: false
     }
   ];
@@ -67,12 +100,17 @@ export async function handleMessageDelete(message) {
     });
   }
 
+  fields.push({
+    name: '💬 Message',
+    value: formatContent(messageData.content),
+    inline: false
+  });
+
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
     .setTitle('🗑️ Message Deleted')
     .addFields(fields)
-    .setFooter({ text: `🆔 Message ID: ${messageData.id}` })
-    .setTimestamp();
+    .setFooter({ text: `🆔 Message ID: ${messageData.id}` });
 
   const firstImage = getFirstImageAttachment(messageData.attachments);
 
@@ -91,7 +129,11 @@ function buildMessageDataFromMessage(message) {
   return {
     id: message.id,
     username: message.author?.tag ?? 'Unknown user',
-    displayName: message.member?.displayName ?? message.author?.username ?? 'Unknown user',
+    displayName:
+      message.member?.displayName ??
+      message.author?.globalName ??
+      message.author?.username ??
+      'Unknown user',
     userId: message.author?.id ?? 'Unknown user ID',
     channelName: message.channel?.name ?? 'Unknown channel',
     channelId: message.channel?.id ?? 'Unknown channel ID',
@@ -114,24 +156,28 @@ function formatContent(content) {
       ? `${content.slice(0, MAX_CONTENT_LENGTH - 3)}...`
       : content;
 
-  return trimmed;
+  return trimmed
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
 }
 
 function formatAttachments(attachments = []) {
-  if (!attachments || attachments.length === 0) {
-    return null;
-  }
+  if (!attachments || attachments.length === 0) return null;
 
   return attachments
-    .map((attachment) => attachment.url ?? attachment)
+    .map((attachment) => {
+      const name = attachment.name ? `${attachment.name}: ` : '';
+      const url = attachment.url ?? attachment;
+
+      return `${name}${url}`;
+    })
     .join('\n')
     .slice(0, MAX_CONTENT_LENGTH);
 }
 
 function getFirstImageAttachment(attachments = []) {
-  if (!attachments || attachments.length === 0) {
-    return null;
-  }
+  if (!attachments || attachments.length === 0) return null;
 
   const imageAttachment = attachments.find((attachment) => {
     const contentType = attachment.contentType || '';
