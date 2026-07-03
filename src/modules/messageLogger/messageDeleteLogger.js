@@ -218,14 +218,22 @@ function formatReplyContext(reply) {
 function formatContent(content) {
   if (!content || content === '[No text content]') return '> *(No text content)*';
 
+  const cleaned = content
+    .replace(/^\s+$/gm, '')
+    .replace(/^\s*\*\s*$/gm, '')
+    .trim();
+
+  if (!cleaned) return '> *(No text content)*';
+
   const trimmed =
-    content.length > MAX_CONTENT_LENGTH
-      ? `${content.slice(0, MAX_CONTENT_LENGTH - 3)}...`
-      : content;
+    cleaned.length > MAX_CONTENT_LENGTH
+      ? `${cleaned.slice(0, MAX_CONTENT_LENGTH - 3)}...`
+      : cleaned;
 
   return trimmed
     .split('\n')
-    .map((line) => `> *${escapeItalics(line || ' ')}*`)
+    .filter((line) => line.trim() !== '')
+    .map((line) => `> *${escapeItalics(line.trim())}*`)
     .join('\n');
 }
 

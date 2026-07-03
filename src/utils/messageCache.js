@@ -19,6 +19,7 @@ export function cacheMessage(message) {
       name: attachment.name,
       contentType: attachment.contentType
     })),
+    reply: buildReplyData(message),
     url: message.url
   });
 
@@ -34,4 +35,32 @@ export function getCachedMessage(messageId) {
 
 export function deleteCachedMessage(messageId) {
   messageCache.delete(messageId);
+}
+
+function buildReplyData(message) {
+  const reference = message.reference;
+
+  if (!reference?.messageId) return null;
+
+  const repliedMessage = message.channel?.messages?.cache?.get(reference.messageId);
+
+  if (!repliedMessage) {
+    return {
+      unavailable: true,
+      messageId: reference.messageId
+    };
+  }
+
+  return {
+    unavailable: false,
+    messageId: repliedMessage.id,
+    userId: repliedMessage.author?.id ?? null,
+    displayName:
+      repliedMessage.member?.displayName ??
+      repliedMessage.author?.globalName ??
+      repliedMessage.author?.username ??
+      'Unknown user',
+    username: repliedMessage.author?.tag ?? 'Unknown user',
+    content: repliedMessage.content?.trim() || '[No text content]'
+  };
 }
