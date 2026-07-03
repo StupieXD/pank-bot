@@ -109,7 +109,7 @@ export async function handleMessageDelete(message) {
 
   fields.push({
     name: '💬 Message',
-    value: formatContent(messageData.content),
+    value: formatDeletedMessageContent(messageData.content),
     inline: false
   });
 
@@ -211,24 +211,16 @@ function formatReplyContext(reply) {
     `${reply.userId ? `<@${reply.userId}>` : reply.displayName}\n` +
     `Display name: ${reply.displayName}\n` +
     `Username: ${reply.username}\n\n` +
-    formatContent(reply.content)
+    formatReplyContent(reply.content)
   );
 }
 
-function formatContent(content) {
-  if (!content || content === '[No text content]') return '> *(No text content)*';
-
-  const cleaned = content
-    .replace(/^\s+$/gm, '')
-    .replace(/^\s*\*\s*$/gm, '')
-    .trim();
+function formatDeletedMessageContent(content) {
+  const cleaned = cleanContent(content);
 
   if (!cleaned) return '> *(No text content)*';
 
-  const trimmed =
-    cleaned.length > MAX_CONTENT_LENGTH
-      ? `${cleaned.slice(0, MAX_CONTENT_LENGTH - 3)}...`
-      : cleaned;
+  const trimmed = shorten(cleaned);
 
   return trimmed
     .split('\n')
@@ -237,36 +229,100 @@ function formatContent(content) {
     .join('\n');
 }
 
+function formatReplyContent(content) {
+  const cleaned = cleanContent(content);
+
+  if (!cleaned) return '> *(No text content)*';
+
+  const trimmed = shorten(cleaned);
+
+  return trimmed
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .map((line) => `> ${line.trim()}`)
+    .join('\n');
+}
+
+function cleanContent(content) {
+  if (!content || content === '[No text content]') return '';
+
+  return content
+    .replace(/^\s+$/gm, '')
+    .replace(/^\s*\*\s*$/gm, '')
+    .trim();
+}
+
+function shorten(content) {
+  return content.length > MAX_CONTENT_LENGTH
+    ? `${content.slice(0, MAX_CONTENT_LENGTH - 3)}...`
+    : content;
+}
+
 function formatAttachments(attachments = []) {
   if (!attachments || attachments.length === 0) return null;
 
-  return attachments
-    .map((attachment) => {
-      const name = attachment.name || 'Attachment';
-      const url = attachment.url ?? attachment;
-      const icon = getAttachmentIcon(attachment);
+  const grouped = {
+    images: [],
+    videos: [],
+    audio: [],
+    files: []
+  };
 
-      return `${icon} [${name}](${url})`;
-    })
-    .join('\n')
-    .slice(0, MAX_CONTENT_LENGTH);
+  for (const attachment of attachments) {
+    const name = attachment.name || 'Attachment';
+    const url = attachment.url ?? attachment;
+    const type = getAttachmentType(attachment);
+    const icon = getAttachmentIcon(attachment);
+
+    grouped[type].push(`${icon} [${name}](${url})`);
+  }
+
+  const sections = [];
+
+  if (grouped.images.length > 0) {
+    sections.push(`**🖼️ Images**\n${grouped.images.join('\n')}`);
+  }
+
+  if (grouped.videos.length > 0) {
+    sections.push(`**🎥 Videos**\n${grouped.videos.join('\n')}`);
+  }
+
+  if (grouped.audio.length > 0) {
+    sections.push(`**🎵 Audio**\n${grouped.audio.join('\n')}`);
+  }
+
+  if (grouped.files.length > 0) {
+    sections.push(`**📄 Files**\n${grouped.files.join('\n')}`);
+  }
+
+  return sections.join('\n\n').slice(0, MAX_CONTENT_LENGTH);
 }
 
-function getAttachmentIcon(attachment) {
+function getAttachmentType(attachment) {
   const contentType = attachment.contentType || '';
   const url = attachment.url || attachment || '';
 
   if (contentType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(url)) {
-    return '🖼️';
+    return 'images';
   }
 
   if (contentType.startsWith('video/') || /\.(mp4|mov|webm|mkv)$/i.test(url)) {
-    return '🎥';
+    return 'videos';
   }
 
   if (contentType.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(url)) {
-    return '🎵';
+    return 'audio';
   }
+
+  return 'files';
+}
+
+function getAttachmentIcon(attachment) {
+  const type = getAttachmentType(attachment);
+
+  if (type === 'images') return '🖼️';
+  if (type === 'videos') return '🎥';
+  if (type === 'audio') return '🎵';
 
   return '📄';
 }
