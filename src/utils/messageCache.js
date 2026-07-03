@@ -14,7 +14,12 @@ export function cacheMessage(message) {
     channelId: message.channel?.id ?? 'Unknown channel ID',
     timestamp: message.createdAt?.toISOString() ?? new Date().toISOString(),
     content: message.content?.trim() || '[No text content]',
-    attachments: [...message.attachments.values()].map((attachment) => attachment.url)
+    attachments: [...message.attachments.values()].map((attachment) => ({
+      url: attachment.url,
+      name: attachment.name,
+      contentType: attachment.contentType
+    })),
+    url: message.url
   });
 
   if (messageCache.size > config.maxCachedMessages) {
