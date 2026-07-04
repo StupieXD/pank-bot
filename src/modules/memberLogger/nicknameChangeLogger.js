@@ -6,8 +6,8 @@ import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 const EMBED_COLOUR = 0x9b59b6;
 
 export async function handleNicknameChange(oldMember, newMember) {
-  const oldNickname = oldMember.nickname ?? oldMember.user.username;
-  const newNickname = newMember.nickname ?? newMember.user.username;
+const oldNickname = oldMember.nickname;
+const newNickname = newMember.nickname;
 
   if (oldNickname === newNickname) return;
 
