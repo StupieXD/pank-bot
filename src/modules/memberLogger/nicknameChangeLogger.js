@@ -89,17 +89,17 @@ function formatNickname(nickname) {
 function formatChangedBy(changedBy, member) {
   if (changedBy && changedBy.id !== member.id) {
     return (
-      `**Moderator**\n\n` +
-      `<@${changedBy.id}>\n` +
-      `Display name: ${changedBy.globalName ?? changedBy.username}\n` +
-      `Username: ${changedBy.tag}`
-    );
+  `<@${changedBy.id}>\n` +
+  `Display name: ${changedBy.globalName ?? changedBy.username}\n` +
+  `Username: ${changedBy.tag}\n\n` +
+  `**Changed by moderator**`
+);
   }
 
   return (
-    `**Self**\n\n` +
-    `<@${member.id}>\n` +
-    `Display name: ${member.displayName}\n` +
-    `Username: ${member.user.tag}`
-  );
+  `<@${member.id}>\n` +
+  `Display name: ${member.displayName}\n` +
+  `Username: ${member.user.tag}\n\n` +
+  `**Self changed**`
+);
 }
