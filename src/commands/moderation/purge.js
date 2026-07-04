@@ -11,9 +11,15 @@ export const data = new SlashCommandBuilder()
     option
       .setName('amount')
       .setDescription('Number of recent messages to scan')
-      .setRequired(true)
+      .setRequired(false)
       .setMinValue(1)
       .setMaxValue(100)
+  .addStringOption((option) =>
+  option
+    .setName('after')
+    .setDescription('Delete messages sent after this message ID')
+    .setRequired(false)
+)
   )
   .addUserOption((option) =>
     option

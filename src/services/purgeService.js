@@ -36,16 +36,37 @@ export async function executePurge(interaction) {
   }
 
   const amount = interaction.options.getInteger('amount');
+  const afterMessageId = interaction.options.getString('after');
   const targetUser = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason') || null;
   const contains = interaction.options.getString('contains');
   const botsOnly = interaction.options.getBoolean('bots_only') || false;
   const attachmentsOnly = interaction.options.getBoolean('attachments_only') || false;
   const linksOnly = interaction.options.getBoolean('links_only') || false;
-
+  if (!amount && !afterMessageId) {
+  return interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(EMBED_COLOURS.error)
+        .setTitle('❌ Missing Purge Target')
+        .setDescription('You must provide either an amount or an "after" message ID.')
+    ],
+    ephemeral: true
+  });
+}
   await interaction.deferReply({ ephemeral: true });
 
-  const fetchedMessages = await interaction.channel.messages.fetch({ limit: amount });
+  let fetchedMessages;
+
+if (afterMessageId) {
+  fetchedMessages = await fetchMessagesAfter(
+    interaction.channel,
+    afterMessageId,
+    amount
+  );
+} else {
+  fetchedMessages = await interaction.channel.messages.fetch({ limit: amount });
+}
   let messagesToDelete = [...fetchedMessages.values()];
 
   if (targetUser) {
@@ -100,11 +121,12 @@ export async function executePurge(interaction) {
     channel: interaction.channel,
     moderator: interaction.user,
     messagesToDelete,
-    scannedAmount: amount,
+    scannedAmount: fetchedMessages.size,
     reason: reason || 'No reason provided',
     displayReason: reason,
     filters: {
       requestedAmount: amount,
+      afterMessageId: afterMessageId || null,
       user: targetUser
         ? {
             username: targetUser.username,
@@ -137,7 +159,7 @@ export async function executePurge(interaction) {
     embeds: [
       buildSuccessEmbed({
         deletedCount,
-        scannedAmount: amount,
+        scannedAmount: purgeData.scannedAmount,
         reason: purgeData.reason,
         moderator: interaction.user,
         channelId: interaction.channelId
@@ -349,7 +371,9 @@ function buildConfirmRow(confirmationId, deleteCount, disabled) {
 
 function buildFiltersText(filters) {
   const activeFilters = [];
-
+if (filters.afterMessageId) {
+  activeFilters.push(`After message: ${filters.afterMessageId}`);
+}
   if (filters.user) {
     activeFilters.push(`User: ${filters.user.displayName} (${filters.user.id})`);
   }
@@ -418,6 +442,43 @@ function shortenText(text, maxLength) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
 }
 
+async function fetchMessagesAfter(channel, afterMessageId, amountLimit) {
+  const afterMessage = await channel.messages
+    .fetch(afterMessageId)
+    .catch(() => null);
+
+  if (!afterMessage) {
+    return new Map();
+  }
+
+  const collected = new Map();
+  let before;
+
+  while (true) {
+    const batch = await channel.messages.fetch({
+      limit: 100,
+      ...(before ? { before } : {})
+    });
+
+    if (batch.size === 0) break;
+
+    for (const message of batch.values()) {
+      if (message.id === afterMessageId) {
+        return collected;
+      }
+
+      collected.set(message.id, message);
+
+      if (amountLimit && collected.size >= amountLimit) {
+        return collected;
+      }
+    }
+
+    before = batch.last()?.id;
+  }
+
+  return collected;
+}
 function getUserDisplayName(user) {
   return user?.globalName || user?.displayName || user?.username || user?.tag || 'Unknown user';
 }
