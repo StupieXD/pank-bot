@@ -45,7 +45,6 @@ export async function handleNicknameChange(previousState, newMember) {
         name: '👤 User',
         value:
           `<@${newMember.id}>\n` +
-          `Display name: ${newMember.displayName}\n` +
           `Username: ${newMember.user.tag}`,
         inline: false
       },
