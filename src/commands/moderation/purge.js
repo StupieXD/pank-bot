@@ -14,12 +14,12 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
       .setMinValue(1)
       .setMaxValue(100)
+  )
   .addStringOption((option) =>
-  option
-    .setName('after')
-    .setDescription('Delete messages sent after this message ID')
-    .setRequired(false)
-)
+    option
+      .setName('after')
+      .setDescription('Delete messages sent after this message ID')
+      .setRequired(false)
   )
   .addUserOption((option) =>
     option
