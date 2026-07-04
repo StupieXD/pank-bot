@@ -61,7 +61,6 @@ export async function handleMessageDelete(message) {
       name: '👤 User',
       value:
         `<@${messageData.userId}>\n` +
-        `Display name: ${messageData.displayName}\n` +
         `Username: ${messageData.username}`,
       inline: false
     },

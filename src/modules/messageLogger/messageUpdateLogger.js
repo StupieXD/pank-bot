@@ -50,7 +50,6 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
       name: '👤 User',
       value:
         `<@${newMessage.author.id}>\n` +
-        `Display name: ${getDisplayName(newMessage)}\n` +
         `Username: ${newMessage.author.tag}`,
       inline: false
     },

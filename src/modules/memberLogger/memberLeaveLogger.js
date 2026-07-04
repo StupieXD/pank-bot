@@ -29,7 +29,6 @@ export async function handleMemberLeave(member) {
         name: '👤 User',
         value:
           `<@${member.user.id}>\n` +
-          `Display name: ${member.displayName}\n` +
           `Username: ${member.user.tag}`,
         inline: false
       },
