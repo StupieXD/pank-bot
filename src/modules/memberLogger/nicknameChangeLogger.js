@@ -5,9 +5,9 @@ import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 
 const EMBED_COLOUR = 0x9b59b6;
 
-export async function handleNicknameChange(oldMember, newMember) {
-const oldNickname = oldMember.nickname;
-const newNickname = newMember.nickname;
+export async function handleNicknameChange(previousState, newMember) {
+  const oldNickname = previousState.nickname;
+  const newNickname = newMember.nickname;
 
   if (oldNickname === newNickname) return;
 
@@ -26,13 +26,8 @@ const newNickname = newMember.nickname;
     timeout: 3000,
     match: (log) => {
       const recent = Date.now() - log.createdTimestamp < 10000;
-      const sameTarget =
-        log.target?.id === newMember.id ||
-        log.targetId === newMember.id;
-
-      const changedNickname = log.changes?.some((change) =>
-        change.key === 'nick'
-      );
+      const sameTarget = log.target?.id === newMember.id || log.targetId === newMember.id;
+      const changedNickname = log.changes?.some((change) => change.key === 'nick');
 
       return recent && sameTarget && changedNickname;
     }
@@ -89,17 +84,17 @@ function formatNickname(nickname) {
 function formatChangedBy(changedBy, member) {
   if (changedBy && changedBy.id !== member.id) {
     return (
-  `<@${changedBy.id}>\n` +
-  `Display name: ${changedBy.globalName ?? changedBy.username}\n` +
-  `Username: ${changedBy.tag}\n\n` +
-  `**Changed by moderator**`
-);
+      `<@${changedBy.id}>\n` +
+      `Display name: ${changedBy.globalName ?? changedBy.username}\n` +
+      `Username: ${changedBy.tag}\n\n` +
+      `**Changed by moderator**`
+    );
   }
 
   return (
-  `<@${member.id}>\n` +
-  `Display name: ${member.displayName}\n` +
-  `Username: ${member.user.tag}\n\n` +
-  `**Self changed**`
-);
+    `<@${member.id}>\n` +
+    `Display name: ${member.displayName}\n` +
+    `Username: ${member.user.tag}\n\n` +
+    `**Self changed**`
+  );
 }
