@@ -67,7 +67,7 @@ async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
 
   const embed = new EmbedBuilder()
     .setColor(isAdded ? ADDED_COLOUR : REMOVED_COLOUR)
-    .setTitle(isAdded ? '🎭 Role Added' : '🎭 Role Removed')
+    .setTitle(isAdded ? '🏷️ Role Added' : '🏷️ Role Removed')
     .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
     .addFields(
       {
@@ -79,7 +79,7 @@ async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
         inline: false
       },
       {
-        name: isAdded ? '✅ Added Role' : '❌ Removed Role',
+        name: isAdded ? '🏷️ Role',
         value: formatRoles(roles),
         inline: false
       },
