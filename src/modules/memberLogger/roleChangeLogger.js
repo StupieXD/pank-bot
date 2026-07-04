@@ -6,14 +6,14 @@ import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 const ADDED_COLOUR = 0x2ecc71;
 const REMOVED_COLOUR = 0xe74c3c;
 
-export async function handleRoleChange(oldMember, newMember) {
-  const oldRoles = oldMember.roles.cache;
-  const newRoles = newMember.roles.cache;
+export async function handleRoleChange(previousState, newMember) {
+  const previousRoleIds = previousState.roleIds;
+  const newRoles = newMember.roles.cache.filter((role) => role.id !== newMember.guild.id);
 
-  const addedRoles = newRoles.filter((role) => !oldRoles.has(role.id));
-  const removedRoles = oldRoles.filter((role) => !newRoles.has(role.id));
+  const addedRoles = newRoles.filter((role) => !previousRoleIds.has(role.id));
+  const removedRoleIds = [...previousRoleIds].filter((roleId) => !newRoles.has(roleId));
 
-  if (addedRoles.size === 0 && removedRoles.size === 0) return;
+  if (addedRoles.size === 0 && removedRoleIds.length === 0) return;
 
   const logChannel = await newMember.client.channels
     .fetch(config.messageLogChannelId)
@@ -30,9 +30,7 @@ export async function handleRoleChange(oldMember, newMember) {
     timeout: 3000,
     match: (log) => {
       const recent = Date.now() - log.createdTimestamp < 10000;
-      const sameTarget =
-        log.target?.id === newMember.id ||
-        log.targetId === newMember.id;
+      const sameTarget = log.target?.id === newMember.id || log.targetId === newMember.id;
 
       return recent && sameTarget;
     }
@@ -44,24 +42,24 @@ export async function handleRoleChange(oldMember, newMember) {
     await sendRoleLog({
       logChannel,
       member: newMember,
-      roles: addedRoles,
+      rolesText: formatRoleMentions([...addedRoles.values()]),
       changedBy,
       type: 'added'
     });
   }
 
-  if (removedRoles.size > 0) {
+  if (removedRoleIds.length > 0) {
     await sendRoleLog({
       logChannel,
       member: newMember,
-      roles: removedRoles,
+      rolesText: formatRemovedRoleIds(removedRoleIds, newMember),
       changedBy,
       type: 'removed'
     });
   }
 }
 
-async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
+async function sendRoleLog({ logChannel, member, rolesText, changedBy, type }) {
   const changedTimestamp = Math.floor(Date.now() / 1000);
   const isAdded = type === 'added';
 
@@ -80,7 +78,7 @@ async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
       },
       {
         name: '🏷️ Role',
-        value: formatRoles(roles),
+        value: rolesText,
         inline: false
       },
       {
@@ -99,10 +97,20 @@ async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
   await logChannel.send({ embeds: [embed] });
 }
 
-function formatRoles(roles) {
-  return [...roles.values()]
+function formatRoleMentions(roles) {
+  return roles
     .sort((a, b) => b.position - a.position)
     .map((role) => `<@&${role.id}>`)
+    .join('\n');
+}
+
+function formatRemovedRoleIds(roleIds, member) {
+  return roleIds
+    .map((roleId) => {
+      const role = member.guild.roles.cache.get(roleId);
+
+      return role ? `<@&${role.id}>` : `Deleted or unavailable role (${roleId})`;
+    })
     .join('\n');
 }
 
