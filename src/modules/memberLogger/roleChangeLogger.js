@@ -72,7 +72,6 @@ async function sendRoleLog({ logChannel, member, rolesText, changedBy, type }) {
         name: '👤 User',
         value:
           `<@${member.id}>\n` +
-          `Display name: ${member.displayName}\n` +
           `Username: ${member.user.tag}`,
         inline: false
       },
