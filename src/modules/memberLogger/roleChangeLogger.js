@@ -90,7 +90,7 @@ async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
       },
       {
         name: '🛡️ Changed By',
-        value: formatChangedBy(changedBy),
+        value: formatChangedBy(changedBy, member),
         inline: false
       }
     )
@@ -106,14 +106,33 @@ function formatRoles(roles) {
     .join('\n');
 }
 
-function formatChangedBy(changedBy) {
+function formatChangedBy(changedBy, member) {
   if (!changedBy) {
-    return 'Unknown\nNo audit log entry found';
+    return 'Unknown\nUnable to determine who changed these roles.';
+  }
+
+  if (changedBy.id === member.id) {
+    return (
+      `<@${member.id}>\n` +
+      `Display name: ${member.displayName}\n` +
+      `Username: ${member.user.tag}\n\n` +
+      `**Self changed**`
+    );
+  }
+
+  if (changedBy.bot) {
+    return (
+      `<@${changedBy.id}>\n` +
+      `Display name: ${changedBy.globalName ?? changedBy.username}\n` +
+      `Username: ${changedBy.tag}\n\n` +
+      `**Changed by bot**`
+    );
   }
 
   return (
     `<@${changedBy.id}>\n` +
     `Display name: ${changedBy.globalName ?? changedBy.username}\n` +
-    `Username: ${changedBy.tag}`
+    `Username: ${changedBy.tag}\n\n` +
+    `**Changed by moderator**`
   );
 }
