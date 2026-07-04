@@ -1,4 +1,5 @@
 import { registerSlashCommands } from '../services/registerSlashCommands.js';
+import { initialiseMemberStateCache } from '../services/memberStateCacheService.js';
 import { Events } from 'discord.js';
 
 export const name = Events.ClientReady;
@@ -8,4 +9,6 @@ export async function execute(client) {
   console.log(`✅ Pank is online as ${client.user.tag}`);
 
   await registerSlashCommands(client);
+
+  await initialiseMemberStateCache(client);
 }
