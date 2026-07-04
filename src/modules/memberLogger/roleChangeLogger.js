@@ -79,7 +79,7 @@ async function sendRoleLog({ logChannel, member, roles, changedBy, type }) {
         inline: false
       },
       {
-        name: isAdded ? '🏷️ Role',
+        name: '🏷️ Role',
         value: formatRoles(roles),
         inline: false
       },
