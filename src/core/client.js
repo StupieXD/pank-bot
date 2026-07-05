@@ -7,13 +7,15 @@ export function createClient() {
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildVoiceStates,
-      GatewayIntentBits.MessageContent
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageReactions
     ],
     partials: [
       Partials.Message,
       Partials.Channel,
       Partials.User,
-      Partials.GuildMember
+      Partials.GuildMember,
+      Partials.Reaction
     ]
   });
 }
