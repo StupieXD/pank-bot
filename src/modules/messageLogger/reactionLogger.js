@@ -10,6 +10,8 @@ import { config } from '../../config/config.js';
 const ADD_COLOUR = 0x2ecc71;
 const REMOVE_COLOUR = 0xe74c3c;
 const MAX_CONTENT_LENGTH = 500;
+const REACTION_LOG_COOLDOWN_MS = 15000;
+const recentReactionLogs = new Map();
 
 export async function handleReactionAdd(reaction, user) {
   await handleReactionLog({
@@ -34,6 +36,26 @@ async function handleReactionLog({ reaction, user, type }) {
   if (!fullReaction) return;
 
   const message = fullReaction.message;
+  const cooldownKey = [
+  user.id,
+  message.id,
+  fullReaction.emoji.id ?? fullReaction.emoji.name
+].join(':');
+
+const lastLoggedAt = recentReactionLogs.get(cooldownKey);
+
+if (
+  lastLoggedAt &&
+  Date.now() - lastLoggedAt < REACTION_LOG_COOLDOWN_MS
+) {
+  return;
+}
+
+recentReactionLogs.set(cooldownKey, Date.now());
+
+setTimeout(() => {
+  recentReactionLogs.delete(cooldownKey);
+}, REACTION_LOG_COOLDOWN_MS);
 
   const logChannel = await message.client.channels
     .fetch(config.messageLogChannelId)
