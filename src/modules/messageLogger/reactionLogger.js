@@ -37,6 +37,7 @@ async function handleReactionLog({ reaction, user, type }) {
 
   const message = fullReaction.message;
   const cooldownKey = [
+  type,
   user.id,
   message.id,
   fullReaction.emoji.id ?? fullReaction.emoji.name
