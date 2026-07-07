@@ -11,6 +11,7 @@ export function getMemberState(member) {
 export function cacheMemberState(member) {
   memberStateCache.set(getCacheKey(member.guild.id, member.id), {
     nickname: member.nickname,
+    communicationDisabledUntilTimestamp: member.communicationDisabledUntilTimestamp,
     roleIds: new Set(
       member.roles.cache
         .filter((role) => role.id !== member.guild.id)
