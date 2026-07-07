@@ -68,9 +68,9 @@ export async function handleVoiceChannelUpdate(oldState, newState) {
     embeds.push(
       buildVoiceActivityEmbed({
         member: newState.member,
-        title: newState.serverMute ? '🚫 Server Muted' : '✅ Server Unmuted',
+        title: newState.serverMute ? '🔇 Voice Muted' : '🔊 Voice Unmuted',
         colour: SERVER_ACTION_COLOUR,
-        actionLabel: newState.serverMute ? 'Muted by Server' : 'Unmuted by Server'
+        actionLabel: newState.serverMute ? 'Muted' : 'Unmuted'
       })
     );
   }
@@ -79,9 +79,9 @@ export async function handleVoiceChannelUpdate(oldState, newState) {
     embeds.push(
       buildVoiceActivityEmbed({
         member: newState.member,
-        title: newState.serverDeaf ? '🚫 Server Deafened' : '✅ Server Undeafened',
+        title: newState.serverDeaf ? '🙊 Voice Deafened' : '🙉 Voice Undeafened',
         colour: SERVER_ACTION_COLOUR,
-        actionLabel: newState.serverDeaf ? 'Deafened by Server' : 'Undeafened by Server'
+        actionLabel: newState.serverDeaf ? 'Deafened' : 'Undeafened'
       })
     );
   }
