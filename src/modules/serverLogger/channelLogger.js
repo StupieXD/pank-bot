@@ -26,6 +26,44 @@ export async function handleChannelCreate(channel) {
   const timestamp = Math.floor(Date.now() / 1000);
   const isCategory = channel.type === ChannelType.GuildCategory;
 
+  const fields = [
+    {
+      name: isCategory ? '📁 Category' : '📍 Channel',
+      value: formatCreatedChannel(channel),
+      inline: false
+    },
+    {
+      name: '🏷️ Type',
+      value: formatChannelType(channel.type),
+      inline: true
+    },
+    {
+      name: '🕒 Created',
+      value: `<t:${timestamp}:R> (<t:${timestamp}:F>)`,
+      inline: true
+    },
+    {
+      name: '🛡️ Moderator',
+      value: formatModerator(
+        createdBy,
+        `Unable to determine who created this ${
+          isCategory ? 'category' : 'channel'
+        }.`
+      ),
+      inline: false
+    }
+  ];
+
+  if (!isCategory) {
+    fields.push({
+      name: '📂 Category',
+      value: channel.parentId
+        ? `<#${channel.parentId}>`
+        : 'None',
+      inline: false
+    });
+  }
+
   const embed = new EmbedBuilder()
     .setColor(CREATE_COLOUR)
     .setTitle(
@@ -33,48 +71,12 @@ export async function handleChannelCreate(channel) {
         ? '📁 Category Created'
         : '➕ Channel Created'
     )
-    .addFields(
-      {
-        name: isCategory ? '📁 Category' : '📍 Channel',
-        value: formatCreatedChannel(channel),
-        inline: false
-      },
-      {
-        name: '🏷️ Type',
-        value: formatChannelType(channel.type),
-        inline: true
-      },
-      {
-        name: '🕒 Created',
-        value: `<t:${timestamp}:R> (<t:${timestamp}:F>)`,
-        inline: true
-      },
-      {
-        name: '🛡️ Created By',
-        value: formatChangedBy(
-          createdBy,
-          `Unable to determine who created this ${
-            isCategory ? 'category' : 'channel'
-          }.`
-        ),
-        inline: false
-      }
-    )
+    .addFields(fields)
     .setFooter({
-      text: `${
-        isCategory ? '📁 Category' : '📍 Channel'
+      text: `🆔 ${
+        isCategory ? 'Category' : 'Channel'
       } ID: ${channel.id}`
     });
-
-  if (!isCategory) {
-    embed.addFields({
-      name: '📂 Category',
-      value: channel.parent
-        ? `<#${channel.parent.id}>`
-        : 'None',
-      inline: false
-    });
-  }
 
   await logChannel.send({ embeds: [embed] });
 }
@@ -99,9 +101,7 @@ export async function handleChannelDelete(channel) {
   const fields = [
     {
       name: isCategory ? '📁 Category' : '📍 Channel',
-      value:
-        `Name: ${channel.name}\n` +
-        `ID: ${channel.id}`,
+      value: `Name: ${channel.name}`,
       inline: false
     },
     {
@@ -115,8 +115,8 @@ export async function handleChannelDelete(channel) {
       inline: true
     },
     {
-      name: '🛡️ Deleted By',
-      value: formatChangedBy(
+      name: '🛡️ Moderator',
+      value: formatModerator(
         deletedBy,
         `Unable to determine who deleted this ${
           isCategory ? 'category' : 'channel'
@@ -129,7 +129,9 @@ export async function handleChannelDelete(channel) {
   if (!isCategory) {
     fields.splice(2, 0, {
       name: '📂 Category',
-      value: channel.parent?.name ?? 'None',
+      value: channel.parentId
+        ? `<#${channel.parentId}>`
+        : 'None',
       inline: false
     });
   }
@@ -151,8 +153,8 @@ export async function handleChannelDelete(channel) {
     )
     .addFields(fields)
     .setFooter({
-      text: `${
-        isCategory ? '📁 Category' : '📍 Channel'
+      text: `🆔 ${
+        isCategory ? 'Category' : 'Channel'
       } ID: ${channel.id}`
     });
 
@@ -161,7 +163,7 @@ export async function handleChannelDelete(channel) {
 
 /*
  * Channel and category update logging will be implemented next.
- * This export is included now so channelUpdate.js loads safely.
+ * This export remains so channelUpdate.js loads safely.
  */
 export async function handleChannelUpdate(oldChannel, newChannel) {
   if (!oldChannel || !newChannel) return;
@@ -200,34 +202,33 @@ async function findChannelAuditEntry(channel, type) {
 
 function formatCreatedChannel(channel) {
   if (channel.type === ChannelType.GuildCategory) {
-    return `Name: ${channel.name}\nID: ${channel.id}`;
+    return `Name: ${channel.name}`;
   }
 
-  return `<#${channel.id}>\nName: ${channel.name}`;
+  return `<#${channel.id}>`;
 }
 
 function formatChannelType(type) {
   const channelTypes = {
-    [ChannelType.GuildText]: 'Text channel',
-    [ChannelType.GuildVoice]: 'Voice channel',
-    [ChannelType.GuildCategory]: 'Category',
-    [ChannelType.GuildAnnouncement]: 'Announcement channel',
-    [ChannelType.GuildStageVoice]: 'Stage channel',
-    [ChannelType.GuildForum]: 'Forum channel',
-    [ChannelType.GuildMedia]: 'Media channel'
+    [ChannelType.GuildText]: '💬 Text channel',
+    [ChannelType.GuildVoice]: '🔊 Voice channel',
+    [ChannelType.GuildCategory]: '📁 Category',
+    [ChannelType.GuildAnnouncement]: '📢 Announcement channel',
+    [ChannelType.GuildStageVoice]: '🎙️ Stage channel',
+    [ChannelType.GuildForum]: '💭 Forum channel',
+    [ChannelType.GuildMedia]: '🖼️ Media channel'
   };
 
-  return channelTypes[type] ?? `Unknown (${type})`;
+  return channelTypes[type] ?? `❓ Unknown (${type})`;
 }
 
-function formatChangedBy(changedBy, unknownMessage) {
-  if (!changedBy) {
+function formatModerator(moderator, unknownMessage) {
+  if (!moderator) {
     return `Unknown\n${unknownMessage}`;
   }
 
   return (
-    `<@${changedBy.id}>\n` +
-    `Username: ${changedBy.tag}\n\n` +
-    `**Changed by ${changedBy.bot ? 'bot' : 'moderator'}**`
+    `<@${moderator.id}>\n` +
+    `Username: ${moderator.tag}`
   );
 }
