@@ -467,6 +467,10 @@ function getPermissionOverwriteMap(channel) {
 
 function formatOverwriteTarget(guild, id, type) {
   if (type === 0) {
+    if (id === guild.id) {
+      return '@everyone';
+    }
+
     const role = guild.roles.cache.get(id);
 
     return role ? `<@&${id}>` : `Role (${id})`;
