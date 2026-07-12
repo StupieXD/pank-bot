@@ -57,9 +57,7 @@ export async function handleChannelCreate(channel) {
   if (!isCategory) {
     fields.push({
       name: '📂 Category',
-      value: channel.parentId
-        ? `<${channel.parentId}>`
-        : 'None',
+      value: channel.parent?.name ?? 'None',
       inline: false
     });
   }
@@ -129,9 +127,7 @@ export async function handleChannelDelete(channel) {
   if (!isCategory) {
     fields.splice(2, 0, {
       name: '📂 Category',
-      value: channel.parentId
-        ? `<${channel.parentId}>`
-        : 'None',
+      value: channel.parent?.name ?? 'None',
       inline: false
     });
   }
@@ -210,13 +206,13 @@ function formatCreatedChannel(channel) {
 
 function formatChannelType(type) {
   const channelTypes = {
-    [ChannelType.GuildText]: '💬 Text channel',
-    [ChannelType.GuildVoice]: '🔊 Voice channel',
+    [ChannelType.GuildText]: '💬 Text Channel',
+    [ChannelType.GuildVoice]: '🔊 Voice Channel',
     [ChannelType.GuildCategory]: '📁 Category',
-    [ChannelType.GuildAnnouncement]: '📢 Announcement channel',
-    [ChannelType.GuildStageVoice]: '🎙️ Stage channel',
-    [ChannelType.GuildForum]: '💭 Forum channel',
-    [ChannelType.GuildMedia]: '🖼️ Media channel'
+    [ChannelType.GuildAnnouncement]: '📢 Announcement Channel',
+    [ChannelType.GuildStageVoice]: '🎙️ Stage Channel',
+    [ChannelType.GuildForum]: '💭 Forum Channel',
+    [ChannelType.GuildMedia]: '🖼️ Media Channel'
   };
 
   return channelTypes[type] ?? `❓ Unknown (${type})`;
