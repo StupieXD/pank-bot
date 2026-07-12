@@ -58,7 +58,7 @@ export async function handleChannelCreate(channel) {
     fields.push({
       name: '📂 Category',
       value: channel.parentId
-        ? `<#${channel.parentId}>`
+        ? `<${channel.parentId}>`
         : 'None',
       inline: false
     });
@@ -130,7 +130,7 @@ export async function handleChannelDelete(channel) {
     fields.splice(2, 0, {
       name: '📂 Category',
       value: channel.parentId
-        ? `<#${channel.parentId}>`
+        ? `<${channel.parentId}>`
         : 'None',
       inline: false
     });
