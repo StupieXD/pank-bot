@@ -71,17 +71,30 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
       inline: true
     },
     {
-      name: '📝 Changes',
-      value: diffResult.embedText,
+      name: '🗑️ Removed',
+      value: diffResult.removedEmbedText,
+      inline: false
+    },
+    {
+      name: '➕ Added',
+      value: diffResult.addedEmbedText,
       inline: false
     }
   ];
+
+  if (diffResult.requiresAttachment) {
+    fields.push({
+      name: '📄 Full Edit Details',
+      value: 'The complete edit details are attached as a text file.',
+      inline: false
+    });
+  }
 
   const attachments = formatAttachments(newMessage);
 
   if (attachments) {
     fields.push({
-      name: '📎 Attachments',
+      name: '📎 Message Attachments',
       value: attachments,
       inline: false
     });
@@ -110,11 +123,11 @@ export async function handleMessageUpdate(oldMessage, newMessage) {
   const files = [];
 
   if (diffResult.requiresAttachment) {
-    const attachment = new AttachmentBuilder(
-      Buffer.from(diffResult.fileText, 'utf8')
-    ).setName(`message-edit-${newMessage.id}.txt`);
-
-    files.push(attachment);
+    files.push(
+      new AttachmentBuilder(
+        Buffer.from(diffResult.fileText, 'utf8')
+      ).setName(`message-edit-${newMessage.id}.txt`)
+    );
   }
 
   await logChannel.send({
@@ -130,60 +143,97 @@ function buildMessageDiff(before, after) {
 
   const changes = diffLines(normalisedBefore, normalisedAfter);
 
-  const changedSections = changes
-    .filter((change) => change.added || change.removed)
-    .flatMap((change) => {
-      const prefix = change.added ? '+' : '-';
-      const lines = splitIntoLines(change.value);
+  const removedLines = [];
+  const addedLines = [];
 
-      return lines.map((line) => `${prefix} ${line}`);
-    });
+  for (const change of changes) {
+    if (!change.added && !change.removed) continue;
 
-  const fullDiff =
-    changedSections.length > 0
-      ? changedSections.join('\n')
-      : '- Unable to identify removed text\n+ Unable to identify added text';
+    const lines = splitIntoLines(change.value);
 
-  const safeEmbedDiff = sanitiseForCodeBlock(fullDiff);
-  const formattedEmbedDiff = `\`\`\`diff\n${safeEmbedDiff}\n\`\`\``;
+    if (change.removed) {
+      removedLines.push(...lines);
+    }
 
-  if (formattedEmbedDiff.length <= MAX_FIELD_LENGTH) {
-    return {
-      embedText: formattedEmbedDiff,
-      fileText: buildDiffFile(before, after, fullDiff),
-      requiresAttachment: false
-    };
+    if (change.added) {
+      addedLines.push(...lines);
+    }
   }
 
-  const preview = createDiffPreview(safeEmbedDiff);
+  const removedText =
+    removedLines.length > 0
+      ? removedLines.join('\n')
+      : 'Nothing removed';
+
+  const addedText =
+    addedLines.length > 0
+      ? addedLines.join('\n')
+      : 'Nothing added';
+
+  const removedEmbedText = formatChangeSection(
+    removedText,
+    'Nothing removed'
+  );
+
+  const addedEmbedText = formatChangeSection(
+    addedText,
+    'Nothing added'
+  );
+
+  const requiresAttachment =
+    removedEmbedText.length > MAX_FIELD_LENGTH ||
+    addedEmbedText.length > MAX_FIELD_LENGTH;
 
   return {
-    embedText:
-      `${preview}\n\n` +
-      '📄 The complete edit diff is attached as a text file.',
-    fileText: buildDiffFile(before, after, fullDiff),
-    requiresAttachment: true
+    removedEmbedText: requiresAttachment
+      ? createSectionPreview(removedText, 'Nothing removed')
+      : removedEmbedText,
+    addedEmbedText: requiresAttachment
+      ? createSectionPreview(addedText, 'Nothing added')
+      : addedEmbedText,
+    fileText: buildDiffFile(before, after, removedText, addedText),
+    requiresAttachment
   };
 }
 
-function createDiffPreview(diffText) {
-  const availableLength = MAX_FIELD_LENGTH - 100;
-  const shortened = shortenText(diffText, availableLength);
+function formatChangeSection(text, emptyMessage) {
+  if (text === emptyMessage) {
+    return `*${emptyMessage}*`;
+  }
 
-  return `\`\`\`diff\n${shortened}\n\`\`\``;
+  const safeText = sanitiseForCodeBlock(text);
+
+  return `\`\`\`\n${safeText}\n\`\`\``;
 }
 
-function buildDiffFile(before, after, fullDiff) {
+function createSectionPreview(text, emptyMessage) {
+  if (text === emptyMessage) {
+    return `*${emptyMessage}*`;
+  }
+
+  const safeText = sanitiseForCodeBlock(text);
+  const availableLength = MAX_FIELD_LENGTH - 40;
+  const shortened = shortenText(safeText, availableLength);
+
+  return `\`\`\`\n${shortened}\n\`\`\``;
+}
+
+function buildDiffFile(before, after, removedText, addedText) {
   return [
-    'MESSAGE EDIT DIFF',
-    '=================',
+    'MESSAGE EDIT DETAILS',
+    '====================',
     '',
     `Generated: ${new Date().toISOString()}`,
     '',
-    'CHANGED SECTIONS',
-    '================',
+    'REMOVED',
+    '=======',
     '',
-    fullDiff,
+    removedText,
+    '',
+    'ADDED',
+    '=====',
+    '',
+    addedText,
     '',
     'FULL BEFORE',
     '===========',
@@ -199,7 +249,9 @@ function buildDiffFile(before, after, fullDiff) {
 }
 
 function splitIntoLines(value) {
-  const lines = value.replace(/\r\n/g, '\n').split('\n');
+  const lines = value
+    .replace(/\r\n/g, '\n')
+    .split('\n');
 
   if (lines.at(-1) === '') {
     lines.pop();
@@ -225,7 +277,10 @@ function formatAttachments(message) {
     })
     .join('\n');
 
-  return shortenText(attachmentText, MAX_ATTACHMENT_FIELD_LENGTH);
+  return shortenText(
+    attachmentText,
+    MAX_ATTACHMENT_FIELD_LENGTH
+  );
 }
 
 function getFirstImageAttachment(message) {
