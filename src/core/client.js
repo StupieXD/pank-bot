@@ -9,7 +9,8 @@ export function createClient() {
       GatewayIntentBits.GuildVoiceStates,
       GatewayIntentBits.MessageContent,
       GatewayIntentBits.GuildMessageReactions,
-      GatewayIntentBits.GuildEmojisAndStickers
+      GatewayIntentBits.GuildEmojisAndStickers,
+      GatewayIntentBits.GuildInvites
     ],
     partials: [
       Partials.Message,
