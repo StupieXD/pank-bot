@@ -8,7 +8,8 @@ export function createClient() {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildVoiceStates,
       GatewayIntentBits.MessageContent,
-      GatewayIntentBits.GuildMessageReactions
+      GatewayIntentBits.GuildMessageReactions,
+      GatewayIntentBits.GuildEmojisAndStickers
     ],
     partials: [
       Partials.Message,
