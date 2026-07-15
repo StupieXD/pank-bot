@@ -1,5 +1,6 @@
 import { registerSlashCommands } from '../services/registerSlashCommands.js';
 import { initialiseMemberStateCache } from '../services/memberStateCacheService.js';
+import { initialiseWebhookStateCache } from '../services/webhookStateCacheService.js';
 import { Events } from 'discord.js';
 
 export const name = Events.ClientReady;
@@ -11,4 +12,5 @@ export async function execute(client) {
   await registerSlashCommands(client);
 
   await initialiseMemberStateCache(client);
+  await initialiseWebhookStateCache(client);
 }
