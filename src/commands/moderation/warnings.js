@@ -16,9 +16,9 @@ const WARNINGS_PER_PAGE = 5;
 const MAX_WARNINGS_LOADED = 100;
 
 const SAFE_COLOUR = 0x2ecc71;
+const CAUTION_COLOUR = 0xf1c40f;
 const WARNING_COLOUR = 0xe67e22;
 const DANGER_COLOUR = 0xe74c3c;
-const SEVERE_COLOUR = 0x992d22;
 
 const BUTTON_PREFIX = 'warnings_page';
 
@@ -79,7 +79,9 @@ export async function execute(interaction) {
     return interaction.editReply({
       content:
         '❌ The warning history could not be retrieved. ' +
-        'Check the bot logs for more information.'
+        'Check the bot logs for more information.',
+      embeds: [],
+      components: []
     });
   }
 }
@@ -254,9 +256,7 @@ async function buildWarningsResponse({
     .addFields(
       {
         name: '👤 Member',
-        value:
-          `${targetUser}\n` +
-          `Username: ${targetUser.tag}`,
+        value: `${targetUser}`,
         inline: false
       },
       {
@@ -272,11 +272,13 @@ async function buildWarningsResponse({
       ...warningFields
     )
     .setFooter({
-      text:
-        `Page ${currentPage + 1} of ${totalPages} • ` +
-        `Showing ${startIndex + 1}–` +
-        `${startIndex + warningsOnPage.length} of ` +
-        `${warnings.length} warning records`
+      text: buildFooter({
+        currentPage,
+        totalPages,
+        startIndex,
+        warningsOnPageCount: warningsOnPage.length,
+        totalWarnings: warnings.length
+      })
     })
     .setTimestamp();
 
@@ -295,6 +297,7 @@ async function buildWarningsResponse({
   }
 
   return {
+    content: null,
     embeds: [embed],
     components
   };
@@ -314,7 +317,7 @@ async function formatWarningField(
   const sections = [
     `**Status:** ${status}`,
     `**Reason:** ${warning.reason}`,
-    `**Issued by:** ${moderator}`,
+    `**Moderator:** ${moderator}`,
     `**Issued:** ${toDiscordTimestamp(
       warning.createdAt
     )}`
@@ -350,7 +353,7 @@ async function formatWarningField(
   }
 
   return {
-    name: `📋 Case #${warning.caseNumber}`,
+    name: `Case #${warning.caseNumber}`,
     value: sections.join('\n'),
     inline: false
   };
@@ -363,17 +366,48 @@ function buildSummary({
   includeRemoved
 }) {
   const lines = [
-    `Active: **${activeCount}**`
+    `${getActiveSummaryEmoji(activeCount)} Active: **${activeCount}**`
   ];
 
   if (includeRemoved) {
     lines.push(
-      `Removed: **${removedCount}**`,
-      `Expired: **${expiredCount}**`
+      `🟢 Removed: **${removedCount}**`,
+      `⚪ Expired: **${expiredCount}**`
     );
   }
 
   return lines.join('\n');
+}
+
+function getActiveSummaryEmoji(activeCount) {
+  if (activeCount === 0) return '🟢';
+  if (activeCount <= 2) return '🟡';
+  if (activeCount <= 4) return '🟠';
+
+  return '🔴';
+}
+
+function buildFooter({
+  currentPage,
+  totalPages,
+  startIndex,
+  warningsOnPageCount,
+  totalWarnings
+}) {
+  if (totalPages === 1) {
+    return (
+      `${totalWarnings} warning ` +
+      `${totalWarnings === 1 ? 'record' : 'records'} • ` +
+      'Page 1/1'
+    );
+  }
+
+  return (
+    `Showing ${startIndex + 1}–` +
+    `${startIndex + warningsOnPageCount} of ` +
+    `${totalWarnings} • ` +
+    `Page ${currentPage + 1}/${totalPages}`
+  );
 }
 
 function buildPaginationRow({
@@ -479,10 +513,7 @@ async function formatModerator(
     return `<@${moderatorId}>`;
   }
 
-  return (
-    `<@${moderator.id}> ` +
-    `(${moderator.tag})`
-  );
+  return `<@${moderator.id}>`;
 }
 
 function getWarningColour(activeWarningCount) {
@@ -491,14 +522,14 @@ function getWarningColour(activeWarningCount) {
   }
 
   if (activeWarningCount <= 2) {
-    return WARNING_COLOUR;
+    return CAUTION_COLOUR;
   }
 
   if (activeWarningCount <= 4) {
-    return DANGER_COLOUR;
+    return WARNING_COLOUR;
   }
 
-  return SEVERE_COLOUR;
+  return DANGER_COLOUR;
 }
 
 function formatStatus(status) {
