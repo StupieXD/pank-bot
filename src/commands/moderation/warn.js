@@ -26,7 +26,9 @@ export const data = new SlashCommandBuilder()
       .setRequired(true)
       .setMaxLength(1000)
   )
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.ModerateMembers
+  )
   .setDMPermission(false);
 
 export async function execute(interaction) {
@@ -75,7 +77,7 @@ export async function execute(interaction) {
 
     const dmSent = await sendWarningDm({
       member: targetMember,
-      guildName: interaction.guild.name,
+      guild: interaction.guild,
       caseNumber: moderationCase.caseNumber,
       reason: moderationCase.reason
     });
@@ -127,7 +129,10 @@ function validateWarningTarget({
       targetMember.roles.highest
     ) <= 0
   ) {
-    return 'You cannot warn a member with an equal or higher role than your highest role.';
+    return (
+      'You cannot warn a member with an equal or higher ' +
+      'role than your highest role.'
+    );
   }
 
   return null;
@@ -135,29 +140,53 @@ function validateWarningTarget({
 
 async function sendWarningDm({
   member,
-  guildName,
+  guild,
   caseNumber,
   reason
 }) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
-    .setTitle(`⚠️ Warning from ${guildName}`)
+    .setTitle('⚠️ You have received a warning')
+    .setDescription(
+      `You have received an official warning in **${guild.name}**.`
+    )
     .addFields(
       {
-        name: 'Case',
+        name: '📋 Case',
         value: `#${caseNumber}`,
         inline: true
       },
       {
-        name: 'Reason',
+        name: '📝 Reason',
         value: reason,
+        inline: false
+      },
+      {
+        name: 'ℹ️ What happens next?',
+        value:
+          'Please make sure you follow the server rules going forward.\n\n' +
+          'If you believe this warning was issued in error, please contact the moderation team.',
         inline: false
       }
     )
+    .setFooter({
+      text:
+        'This warning has been recorded in your moderation history.'
+    })
     .setTimestamp();
 
+  const serverIcon = guild.iconURL({
+    size: 256
+  });
+
+  if (serverIcon) {
+    embed.setThumbnail(serverIcon);
+  }
+
   return member
-    .send({ embeds: [embed] })
+    .send({
+      embeds: [embed]
+    })
     .then(() => true)
     .catch(() => false);
 }
@@ -183,7 +212,9 @@ async function sendWarningLog({
 
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
-    .setTitle(`⚠️ Warning Issued • Case #${moderationCase.caseNumber}`)
+    .setTitle(
+      `⚠️ Warning Issued • Case #${moderationCase.caseNumber}`
+    )
     .setThumbnail(
       targetMember.user.displayAvatarURL({
         dynamic: true
