@@ -53,7 +53,7 @@ export async function execute(interaction) {
 
     if (!targetMember) {
       return interaction.editReply({
-        content: '❌ That user is not currently in this server.'
+        content: 'â That user is not currently in this server.'
       });
     }
 
@@ -64,7 +64,7 @@ export async function execute(interaction) {
 
     if (validationError) {
       return interaction.editReply({
-        content: `❌ ${validationError}`
+        content: `â ${validationError}`
       });
     }
 
@@ -91,16 +91,17 @@ export async function execute(interaction) {
 
     return interaction.editReply({
       content:
-        `✅ Warned <@${targetUser.id}>.\n` +
+        `â Warned <@${targetUser.id}>.\n` +
         `Case: **#${moderationCase.caseNumber}**\n` +
-        `DM sent: **${dmSent ? 'Yes' : 'No'}**`
+        `DM sent: **${dmSent ? 'Yes' : 'No'}**\n\n` +
+        `Use \`/case number:${moderationCase.caseNumber}\` to view the full case.`
     });
   } catch (error) {
-    console.error('❌ Failed to issue warning:', error);
+    console.error('â Failed to issue warning:', error);
 
     return interaction.editReply({
       content:
-        '❌ The warning could not be created. Check the bot logs for more information.'
+        'â The warning could not be created. Check the bot logs for more information.'
     });
   }
 }
@@ -146,23 +147,23 @@ async function sendWarningDm({
 }) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
-    .setTitle('⚠️ You have received a warning')
+    .setTitle('â ï¸ You have received a warning')
     .setDescription(
       `You have received an official warning in **${guild.name}**.`
     )
     .addFields(
       {
-        name: '📋 Case',
+        name: 'ð Case',
         value: `#${caseNumber}`,
         inline: true
       },
       {
-        name: '📝 Reason',
+        name: 'ð Reason',
         value: reason,
         inline: false
       },
       {
-        name: 'ℹ️ What happens next?',
+        name: 'â¹ï¸ What happens next?',
         value:
           'Please make sure you follow the server rules going forward.\n\n' +
           'If you believe this warning was issued in error, please contact the moderation team.',
@@ -202,7 +203,7 @@ async function sendWarningLog({
     .catch(() => null);
 
   if (!logChannel) {
-    console.log('❌ Could not find moderation log channel.');
+    console.log('â Could not find moderation log channel.');
     return;
   }
 
@@ -213,7 +214,7 @@ async function sendWarningLog({
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
     .setTitle(
-      `⚠️ Warning Issued • Case #${moderationCase.caseNumber}`
+      `â ï¸ Warning Issued â¢ Case #${moderationCase.caseNumber}`
     )
     .setThumbnail(
       targetMember.user.displayAvatarURL({
@@ -222,31 +223,31 @@ async function sendWarningLog({
     )
     .addFields(
       {
-        name: '👤 User',
+        name: 'ð¤ User',
         value:
           `<@${targetMember.id}>\n` +
           `Username: ${targetMember.user.tag}`,
         inline: false
       },
       {
-        name: '🛡️ Moderator',
+        name: 'ð¡ï¸ Moderator',
         value:
           `<@${interaction.user.id}>\n` +
           `Username: ${interaction.user.tag}`,
         inline: false
       },
       {
-        name: '📝 Reason',
+        name: 'ð Reason',
         value: moderationCase.reason,
         inline: false
       },
       {
-        name: '✉️ DM Sent',
+        name: 'âï¸ DM Sent',
         value: dmSent ? 'Yes' : 'No',
         inline: true
       },
       {
-        name: '🕒 Issued',
+        name: 'ð Issued',
         value:
           `<t:${createdTimestamp}:R> ` +
           `(<t:${createdTimestamp}:F>)`,
@@ -255,7 +256,7 @@ async function sendWarningLog({
     )
     .setFooter({
       text:
-        `🆔 User ID: ${targetMember.id} • ` +
+        `ð User ID: ${targetMember.id} â¢ ` +
         `Case #${moderationCase.caseNumber}`
     });
 
