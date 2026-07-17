@@ -228,6 +228,38 @@ export function removeModerationCase({
   return getModerationCase(guildId, caseNumber);
 }
 
+export function purgeModerationCase({
+  guildId,
+  caseNumber
+}) {
+  validateRequiredString(guildId, 'guildId');
+  validateCaseNumber(caseNumber);
+
+  const existingCase = getModerationCase(
+    guildId,
+    caseNumber
+  );
+
+  if (!existingCase) {
+    return null;
+  }
+
+  const database = getDatabase();
+
+  const result = database
+    .prepare(`
+      DELETE FROM moderation_cases
+      WHERE guild_id = ?
+        AND case_number = ?
+    `)
+    .run(
+      guildId,
+      caseNumber
+    );
+
+  return Number(result.changes) > 0;
+}
+
 export function updateModerationCaseStatus({
   guildId,
   caseNumber,
