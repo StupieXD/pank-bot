@@ -1,5 +1,6 @@
 import {
   createModerationCase,
+  getAdjacentModerationCase,
   getModerationCase,
   getModerationCasesForUser,
   purgeModerationCase,
@@ -77,6 +78,18 @@ export function getCase({
     guildId,
     caseNumber
   );
+}
+
+export function getAdjacentCase({
+  guildId,
+  caseNumber,
+  direction
+}) {
+  return getAdjacentModerationCase({
+    guildId,
+    caseNumber,
+    direction
+  });
 }
 
 export function getWarningsForUser({

@@ -37,7 +37,7 @@ export async function execute(interaction) {
   if (interaction.user.id !== interaction.guild.ownerId) {
     return interaction.reply({
       content:
-        '❌ Only the server owner can permanently erase warning cases.',
+        '\u274C Only the server owner can permanently erase warning cases.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -54,21 +54,21 @@ export async function execute(interaction) {
 
   if (!moderationCase) {
     return interaction.reply({
-      content: `❌ Case #${caseNumber} could not be found.`,
+      content: `\u274C Case #${caseNumber} could not be found.`,
       flags: MessageFlags.Ephemeral
     });
   }
 
   if (moderationCase.caseType !== ModerationCaseType.WARNING) {
     return interaction.reply({
-      content: `❌ Case #${caseNumber} is not a warning.`,
+      content: `\u274C Case #${caseNumber} is not a warning.`,
       flags: MessageFlags.Ephemeral
     });
   }
 
   const embed = new EmbedBuilder()
     .setColor(CONFIRMATION_COLOUR)
-    .setTitle('⚠️ Permanently Delete Warning?')
+    .setTitle('\u26A0\uFE0F Permanently Delete Warning?')
     .setDescription(
       `You are about to permanently erase **Case #${caseNumber}** ` +
       'from the SQLite database.\n\n' +
@@ -77,12 +77,12 @@ export async function execute(interaction) {
     )
     .addFields(
       {
-        name: '👤 User',
+        name: '\uD83D\uDC64 User',
         value: `<@${moderationCase.userId}>`,
         inline: false
       },
       {
-        name: '📝 Reason',
+        name: '\uD83D\uDCDD Reason',
         value: moderationCase.reason,
         inline: false
       }
@@ -127,7 +127,7 @@ export async function handleButton(interaction) {
 
   if (!parsed) {
     await interaction.reply({
-      content: '❌ This confirmation button is invalid.',
+      content: '\u274C This confirmation button is invalid.',
       flags: MessageFlags.Ephemeral
     });
 
@@ -140,7 +140,7 @@ export async function handleButton(interaction) {
   ) {
     await interaction.reply({
       content:
-        '❌ Only the server owner who opened this confirmation can use it.',
+        '\u274C Only the server owner who opened this confirmation can use it.',
       flags: MessageFlags.Ephemeral
     });
 
@@ -149,7 +149,7 @@ export async function handleButton(interaction) {
 
   if (isCancellation) {
     await interaction.update({
-      content: '✅ Permanent warning deletion cancelled.',
+      content: '\u2705 Permanent warning deletion cancelled.',
       embeds: [],
       components: []
     });
@@ -165,22 +165,22 @@ export async function handleButton(interaction) {
 
     await interaction.update({
       content:
-        `✅ Warning Case **#${deletedCase.caseNumber}** was ` +
-        'permanently erased from the database.',
+        `\u2705 Warning Case **#${deletedCase.caseNumber}** was ` +
+        'permanently erased from the database and can no longer be viewed with `/case`.',
       embeds: [],
       components: []
     });
   } catch (error) {
     console.error(
-      '❌ Failed to permanently delete warning:',
+      '\u274C Failed to permanently delete warning:',
       error
     );
 
     await interaction.update({
       content:
         error instanceof Error
-          ? `❌ ${error.message}`
-          : '❌ The warning could not be permanently deleted.',
+          ? `\u274C ${error.message}`
+          : '\u274C The warning could not be permanently deleted.',
       embeds: [],
       components: []
     });

@@ -58,7 +58,7 @@ export async function execute(interaction) {
 
     if (!existingCase) {
       return interaction.editReply({
-        content: `â Case #${caseNumber} could not be found.`
+        content: `\u274C Case #${caseNumber} could not be found.`
       });
     }
 
@@ -89,18 +89,19 @@ export async function execute(interaction) {
 
     return interaction.editReply({
       content:
-        `â Warning Case **#${caseNumber}** has been removed.\n` +
-        `DM sent: **${dmSent ? 'Yes' : 'No'}**`
+        `\u2705 Warning Case **#${caseNumber}** has been removed.\n` +
+        `DM sent: **${dmSent ? 'Yes' : 'No'}**\n\n` +
+        `Use \`/case number:${caseNumber}\` to view the full case.`
     });
   } catch (error) {
-    console.error('â Failed to remove warning:', error);
+    console.error('\u274C Failed to remove warning:', error);
 
     const knownMessage = getKnownErrorMessage(error);
 
     return interaction.editReply({
       content:
         knownMessage ??
-        'â The warning could not be removed. Check the bot logs for more information.'
+        '\u274C The warning could not be removed. Check the bot logs for more information.'
     });
   }
 }
@@ -116,7 +117,7 @@ async function sendWarningRemovalLog({
     .catch(() => null);
 
   if (!logChannel?.isTextBased()) {
-    console.log('â Could not find moderation log channel.');
+    console.log('\u274C Could not find moderation log channel.');
     return;
   }
 
@@ -131,43 +132,43 @@ async function sendWarningRemovalLog({
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
     .setTitle(
-      `â Warning Removed â¢ Case #${removedCase.caseNumber}`
+      `\u2705 Warning Removed \u2022 Case #${removedCase.caseNumber}`
     )
     .addFields(
       {
-        name: 'ð¤ User',
+        name: '\uD83D\uDC64 User',
         value: userDisplay,
         inline: false
       },
       {
-        name: 'ð¡ï¸ Removed By',
+        name: '\uD83D\uDEE1\uFE0F Removed By',
         value:
           `<@${interaction.user.id}>\n` +
           `Username: ${interaction.user.tag}`,
         inline: false
       },
       {
-        name: 'â ï¸ Originally Issued By',
+        name: '\u26A0\uFE0F Originally Issued By',
         value: `<@${removedCase.moderatorId}>`,
         inline: false
       },
       {
-        name: 'ð Original Reason',
+        name: '\uD83D\uDCDD Original Reason',
         value: removedCase.reason,
         inline: false
       },
       {
-        name: 'ðï¸ Removal Reason',
+        name: '\uD83D\uDDD1\uFE0F Removal Reason',
         value: removedCase.removalReason,
         inline: false
       },
       {
-        name: 'âï¸ DM Sent',
+        name: '\u2709\uFE0F DM Sent',
         value: dmSent ? 'Yes' : 'No',
         inline: true
       },
       {
-        name: 'ð Removed',
+        name: '\uD83D\uDD52 Removed',
         value:
           `<t:${removedTimestamp}:R> ` +
           `(<t:${removedTimestamp}:F>)`,
@@ -176,7 +177,7 @@ async function sendWarningRemovalLog({
     )
     .setFooter({
       text:
-        `ð User ID: ${removedCase.userId} â¢ ` +
+        `\uD83C\uDD94 User ID: ${removedCase.userId} \u2022 ` +
         `Case #${removedCase.caseNumber}`
     });
 
@@ -213,7 +214,7 @@ function getKnownErrorMessage(error) {
       error.message.includes(message)
     )
   ) {
-    return `â ${error.message}`;
+    return `\u274C ${error.message}`;
   }
 
   return null;

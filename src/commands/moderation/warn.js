@@ -53,7 +53,7 @@ export async function execute(interaction) {
 
     if (!targetMember) {
       return interaction.editReply({
-        content: '❌ That user is not currently in this server.'
+        content: '\u274C That user is not currently in this server.'
       });
     }
 
@@ -64,7 +64,7 @@ export async function execute(interaction) {
 
     if (validationError) {
       return interaction.editReply({
-        content: `❌ ${validationError}`
+        content: `\u274C ${validationError}`
       });
     }
 
@@ -91,16 +91,17 @@ export async function execute(interaction) {
 
     return interaction.editReply({
       content:
-        `✅ Warned <@${targetUser.id}>.\n` +
+        `\u2705 Warned <@${targetUser.id}>.\n` +
         `Case: **#${moderationCase.caseNumber}**\n` +
-        `DM sent: **${dmSent ? 'Yes' : 'No'}**`
+        `DM sent: **${dmSent ? 'Yes' : 'No'}**\n\n` +
+        `Use \`/case number:${moderationCase.caseNumber}\` to view the full case.`
     });
   } catch (error) {
-    console.error('❌ Failed to issue warning:', error);
+    console.error('\u274C Failed to issue warning:', error);
 
     return interaction.editReply({
       content:
-        '❌ The warning could not be created. Check the bot logs for more information.'
+        '\u274C The warning could not be created. Check the bot logs for more information.'
     });
   }
 }
@@ -146,23 +147,23 @@ async function sendWarningDm({
 }) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
-    .setTitle('⚠️ You have received a warning')
+    .setTitle('\u26A0\uFE0F You have received a warning')
     .setDescription(
       `You have received an official warning in **${guild.name}**.`
     )
     .addFields(
       {
-        name: '📋 Case',
+        name: '\uD83D\uDCCB Case',
         value: `#${caseNumber}`,
         inline: true
       },
       {
-        name: '📝 Reason',
+        name: '\uD83D\uDCDD Reason',
         value: reason,
         inline: false
       },
       {
-        name: 'ℹ️ What happens next?',
+        name: '\u2139\uFE0F What happens next?',
         value:
           'Please make sure you follow the server rules going forward.\n\n' +
           'If you believe this warning was issued in error, please contact the moderation team.',
@@ -202,7 +203,7 @@ async function sendWarningLog({
     .catch(() => null);
 
   if (!logChannel) {
-    console.log('❌ Could not find moderation log channel.');
+    console.log('\u274C Could not find moderation log channel.');
     return;
   }
 
@@ -213,7 +214,7 @@ async function sendWarningLog({
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOUR)
     .setTitle(
-      `⚠️ Warning Issued • Case #${moderationCase.caseNumber}`
+      `\u26A0\uFE0F Warning Issued \u2022 Case #${moderationCase.caseNumber}`
     )
     .setThumbnail(
       targetMember.user.displayAvatarURL({
@@ -222,31 +223,31 @@ async function sendWarningLog({
     )
     .addFields(
       {
-        name: '👤 User',
+        name: '\uD83D\uDC64 User',
         value:
           `<@${targetMember.id}>\n` +
           `Username: ${targetMember.user.tag}`,
         inline: false
       },
       {
-        name: '🛡️ Moderator',
+        name: '\uD83D\uDEE1\uFE0F Moderator',
         value:
           `<@${interaction.user.id}>\n` +
           `Username: ${interaction.user.tag}`,
         inline: false
       },
       {
-        name: '📝 Reason',
+        name: '\uD83D\uDCDD Reason',
         value: moderationCase.reason,
         inline: false
       },
       {
-        name: '✉️ DM Sent',
+        name: '\u2709\uFE0F DM Sent',
         value: dmSent ? 'Yes' : 'No',
         inline: true
       },
       {
-        name: '🕒 Issued',
+        name: '\uD83D\uDD52 Issued',
         value:
           `<t:${createdTimestamp}:R> ` +
           `(<t:${createdTimestamp}:F>)`,
@@ -255,7 +256,7 @@ async function sendWarningLog({
     )
     .setFooter({
       text:
-        `🆔 User ID: ${targetMember.id} • ` +
+        `\uD83C\uDD94 User ID: ${targetMember.id} \u2022 ` +
         `Case #${moderationCase.caseNumber}`
     });
 

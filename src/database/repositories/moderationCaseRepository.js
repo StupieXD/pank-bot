@@ -92,6 +92,39 @@ export function getModerationCase(guildId, caseNumber) {
   return row ? mapModerationCase(row) : null;
 }
 
+
+export function getAdjacentModerationCase({
+  guildId,
+  caseNumber,
+  direction
+}) {
+  validateRequiredString(guildId, 'guildId');
+  validateCaseNumber(caseNumber);
+
+  if (direction !== 'previous' && direction !== 'next') {
+    throw new TypeError(
+      "direction must be either 'previous' or 'next'."
+    );
+  }
+
+  const database = getDatabase();
+  const operator = direction === 'previous' ? '<' : '>';
+  const order = direction === 'previous' ? 'DESC' : 'ASC';
+
+  const row = database
+    .prepare(`
+      SELECT *
+      FROM moderation_cases
+      WHERE guild_id = ?
+        AND case_number ${operator} ?
+      ORDER BY case_number ${order}
+      LIMIT 1
+    `)
+    .get(guildId, caseNumber);
+
+  return row ? mapModerationCase(row) : null;
+}
+
 export function getModerationCasesForUser(
   guildId,
   userId,
