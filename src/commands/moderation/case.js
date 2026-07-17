@@ -18,42 +18,42 @@ const BUTTON_PREFIX = 'case_navigate';
 const CASE_STYLES = Object.freeze({
   warning: {
     label: 'Warning',
-    emoji: '⚠️',
+    emoji: '\u26A0\uFE0F',
     colour: 0xf1c40f
   },
   note: {
     label: 'Note',
-    emoji: '📝',
+    emoji: '\uD83D\uDCDD',
     colour: 0x3498db
   },
   timeout: {
     label: 'Timeout',
-    emoji: '⏳',
+    emoji: '\u23F3',
     colour: 0xe67e22
   },
   temporary_timeout: {
     label: 'Temporary Timeout',
-    emoji: '⏳',
+    emoji: '\u23F3',
     colour: 0xe67e22
   },
   kick: {
     label: 'Kick',
-    emoji: '🥾',
+    emoji: '\uD83E\uDD7E',
     colour: 0x9b59b6
   },
   ban: {
     label: 'Ban',
-    emoji: '🔨',
+    emoji: '\uD83D\uDD28',
     colour: 0xe74c3c
   },
   temporary_ban: {
     label: 'Temporary Ban',
-    emoji: '🔨',
+    emoji: '\uD83D\uDD28',
     colour: 0xe74c3c
   },
   softban: {
     label: 'Softban',
-    emoji: '🧹',
+    emoji: '\uD83E\uDDF9',
     colour: 0xc0392b
   }
 });
@@ -61,15 +61,15 @@ const CASE_STYLES = Object.freeze({
 const STATUS_STYLES = Object.freeze({
   active: {
     label: 'Active',
-    emoji: '🟢'
+    emoji: '\uD83D\uDFE2'
   },
   expired: {
     label: 'Expired',
-    emoji: '🟠'
+    emoji: '\uD83D\uDFE0'
   },
   removed: {
     label: 'Removed',
-    emoji: '🔴'
+    emoji: '\uD83D\uDD34'
   }
 });
 
@@ -101,7 +101,7 @@ export async function execute(interaction) {
 
   if (!moderationCase) {
     return interaction.reply({
-      content: `❌ Case #${caseNumber} could not be found.`,
+      content: `\u274C Case #${caseNumber} could not be found.`,
       flags: MessageFlags.Ephemeral
     });
   }
@@ -127,7 +127,7 @@ export async function handleButton(interaction) {
 
   if (!parsed) {
     await interaction.reply({
-      content: '❌ This case navigation button is invalid.',
+      content: '\u274C This case navigation button is invalid.',
       flags: MessageFlags.Ephemeral
     });
 
@@ -136,7 +136,7 @@ export async function handleButton(interaction) {
 
   if (interaction.user.id !== parsed.requesterId) {
     await interaction.reply({
-      content: '❌ Only the moderator who opened this case can use these buttons.',
+      content: '\u274C Only the moderator who opened this case can use these buttons.',
       flags: MessageFlags.Ephemeral
     });
 
@@ -150,7 +150,7 @@ export async function handleButton(interaction) {
 
   if (!moderationCase) {
     await interaction.update({
-      content: `❌ Case #${parsed.caseNumber} could not be found.`,
+      content: `\u274C Case #${parsed.caseNumber} could not be found.`,
       embeds: [],
       components: []
     });
@@ -192,22 +192,22 @@ async function buildCaseResponse({
     )
     .addFields(
       {
-        name: '📄 Type',
+        name: '\uD83D\uDCC4 Type',
         value: style.label,
         inline: true
       },
       {
-        name: '📊 Status',
+        name: '\uD83D\uDCCA Status',
         value: `${status.emoji} ${status.label}`,
         inline: true
       },
       {
-        name: '👤 Member',
+        name: '\uD83D\uDC64 Member',
         value: formatUser(moderationCase.userId, targetUser),
         inline: false
       },
       {
-        name: '🛡️ Moderator',
+        name: '\uD83D\uDEE1\uFE0F Moderator',
         value: formatUser(
           moderationCase.moderatorId,
           moderatorUser
@@ -215,20 +215,20 @@ async function buildCaseResponse({
         inline: false
       },
       {
-        name: '📝 Reason',
+        name: '\uD83D\uDCDD Reason',
         value: moderationCase.reason || 'No reason provided.',
         inline: false
       },
       {
-        name: '🕒 Created',
+        name: '\uD83D\uDD52 Created',
         value: formatTimestamp(moderationCase.createdAt),
         inline: false
       }
     )
     .setFooter({
       text:
-        `Database ID: ${moderationCase.id} • ` +
-        `Guild ID: ${moderationCase.guildId} • ` +
+        `Database ID: ${moderationCase.id} \u2022 ` +
+        `Guild ID: ${moderationCase.guildId} \u2022 ` +
         `Case #${moderationCase.caseNumber}`
     });
 
@@ -242,7 +242,7 @@ async function buildCaseResponse({
 
   if (moderationCase.expiresAt) {
     embed.addFields({
-      name: '⏱️ Expires',
+      name: '\u23F1\uFE0F Expires',
       value: formatTimestamp(moderationCase.expiresAt),
       inline: false
     });
@@ -251,7 +251,7 @@ async function buildCaseResponse({
   if (moderationCase.status === 'removed') {
     embed.addFields(
       {
-        name: '❌ Removed By',
+        name: '\u274C Removed By',
         value: moderationCase.removedBy
           ? formatUser(
               moderationCase.removedBy,
@@ -261,14 +261,14 @@ async function buildCaseResponse({
         inline: false
       },
       {
-        name: '🗑️ Removal Reason',
+        name: '\uD83D\uDDD1\uFE0F Removal Reason',
         value:
           moderationCase.removalReason ||
           'No removal reason recorded.',
         inline: false
       },
       {
-        name: '🕒 Removed',
+        name: '\uD83D\uDD52 Removed',
         value: moderationCase.removedAt
           ? formatTimestamp(moderationCase.removedAt)
           : 'Unknown',
@@ -300,10 +300,10 @@ async function buildCaseResponse({
       )
       .setLabel(
         previousCase
-          ? `Previous • #${previousCase.caseNumber}`
+          ? `Previous \u2022 #${previousCase.caseNumber}`
           : 'Previous'
       )
-      .setEmoji('◀️')
+      .setEmoji('\u25C0\uFE0F')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!previousCase),
     new ButtonBuilder()
@@ -316,10 +316,10 @@ async function buildCaseResponse({
       )
       .setLabel(
         nextCase
-          ? `Next • #${nextCase.caseNumber}`
+          ? `Next \u2022 #${nextCase.caseNumber}`
           : 'Next'
       )
-      .setEmoji('▶️')
+      .setEmoji('\u25B6\uFE0F')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!nextCase)
   );
@@ -337,7 +337,7 @@ async function buildCaseResponse({
 function getCaseStyle(caseType) {
   return CASE_STYLES[caseType] ?? {
     label: toTitleCase(caseType || 'unknown'),
-    emoji: '📁',
+    emoji: '\uD83D\uDCC1',
     colour: 0x95a5a6
   };
 }
@@ -345,7 +345,7 @@ function getCaseStyle(caseType) {
 function getStatusStyle(status) {
   return STATUS_STYLES[status] ?? {
     label: toTitleCase(status || 'unknown'),
-    emoji: '⚪'
+    emoji: '\u26AA'
   };
 }
 
