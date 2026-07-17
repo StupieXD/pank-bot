@@ -2,6 +2,7 @@ import {
   createModerationCase,
   getModerationCase,
   getModerationCasesForUser,
+  purgeModerationCase,
   removeModerationCase
 } from '../database/repositories/moderationCaseRepository.js';
 
@@ -136,6 +137,44 @@ export function removeWarning({
     removedBy: moderatorId,
     removalReason: normaliseReason(reason)
   });
+}
+
+export function purgeWarning({
+  guildId,
+  caseNumber
+}) {
+  const moderationCase = getModerationCase(
+    guildId,
+    caseNumber
+  );
+
+  if (!moderationCase) {
+    throw new Error(
+      `Case #${caseNumber} could not be found.`
+    );
+  }
+
+  if (
+    moderationCase.caseType !==
+    ModerationCaseType.WARNING
+  ) {
+    throw new Error(
+      `Case #${caseNumber} is not a warning.`
+    );
+  }
+
+  const purged = purgeModerationCase({
+    guildId,
+    caseNumber
+  });
+
+  if (!purged) {
+    throw new Error(
+      `Case #${caseNumber} could not be permanently deleted.`
+    );
+  }
+
+  return moderationCase;
 }
 
 function validateModerationTarget({
