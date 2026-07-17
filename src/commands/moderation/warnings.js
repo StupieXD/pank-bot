@@ -195,28 +195,48 @@ async function handleViewCaseButton(interaction) {
     return true;
   }
 
-  const moderationCase = getCase({
-    guildId: interaction.guildId,
-    caseNumber: parsed.caseNumber
-  });
+  // Acknowledge the button immediately. Building the detailed case view can
+  // involve Discord API requests and may otherwise exceed Discord's
+  // three-second interaction response window.
+  await interaction.deferUpdate();
 
-  if (!moderationCase) {
-    await interaction.update({
-      content: `\u274C Case #${parsed.caseNumber} could not be found.`,
-      embeds: [],
-      components: []
+  try {
+    const moderationCase = getCase({
+      guildId: interaction.guildId,
+      caseNumber: parsed.caseNumber
     });
 
-    return true;
+    if (!moderationCase) {
+      await interaction.editReply({
+        content: `\u274C Case #${parsed.caseNumber} could not be found.`,
+        embeds: [],
+        components: []
+      });
+
+      return true;
+    }
+
+    const response = await buildCaseResponse({
+      interaction,
+      moderationCase,
+      requesterId: parsed.requesterId
+    });
+
+    await interaction.editReply(response);
+  } catch (error) {
+    console.error(
+      '\u274C Failed to open warning case:',
+      error
+    );
+
+    await interaction.editReply({
+      content:
+        '\u274C The selected moderation case could not be loaded.',
+      embeds: [],
+      components: []
+    }).catch(() => null);
   }
 
-  const response = await buildCaseResponse({
-    interaction,
-    moderationCase,
-    requesterId: parsed.requesterId
-  });
-
-  await interaction.update(response);
   return true;
 }
 
