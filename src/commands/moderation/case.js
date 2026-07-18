@@ -146,10 +146,9 @@ export async function buildCaseResponse({
       )
       .setLabel(
         previousCase
-          ? `Previous #${previousCase.caseNumber}`
-          : 'Previous'
+          ? `\u25C0 Previous #${previousCase.caseNumber}`
+          : '\u25C0 Previous'
       )
-      .setEmoji('\u25C0\uFE0F')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!previousCase),
     new ButtonBuilder()
@@ -162,10 +161,9 @@ export async function buildCaseResponse({
       )
       .setLabel(
         nextCase
-          ? `Next #${nextCase.caseNumber}`
-          : 'Next'
+          ? `Next #${nextCase.caseNumber} \u25B6`
+          : 'Next \u25B6'
       )
-      .setEmoji('\u25B6\uFE0F')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!nextCase)
   );
