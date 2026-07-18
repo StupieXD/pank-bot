@@ -3,12 +3,17 @@ import { config } from '../config/config.js';
 const messageCache = new Map();
 
 export function cacheMessage(message) {
-  if (message.author?.bot) return;
+  if (!message.guildId || message.author?.bot) return;
 
   messageCache.set(message.id, {
     id: message.id,
+    guildId: message.guildId,
     username: message.author.tag,
-    displayName: message.member?.displayName ?? message.author.username,
+    displayName:
+      message.member?.displayName ??
+      message.author.globalName ??
+      message.author.username,
+    avatarUrl: message.author.displayAvatarURL({ size: 256 }),
     userId: message.author.id,
     channelName: message.channel?.name ?? 'Unknown channel',
     channelId: message.channel?.id ?? 'Unknown channel ID',
@@ -17,7 +22,13 @@ export function cacheMessage(message) {
     attachments: [...message.attachments.values()].map((attachment) => ({
       url: attachment.url,
       name: attachment.name,
-      contentType: attachment.contentType
+      contentType: attachment.contentType,
+      size: attachment.size
+    })),
+    stickers: [...message.stickers.values()].map((sticker) => ({
+      id: sticker.id,
+      name: sticker.name,
+      url: sticker.url
     })),
     reply: buildReplyData(message),
     url: message.url
@@ -42,7 +53,9 @@ function buildReplyData(message) {
 
   if (!reference?.messageId) return null;
 
-  const repliedMessage = message.channel?.messages?.cache?.get(reference.messageId);
+  const repliedMessage = message.channel?.messages?.cache?.get(
+    reference.messageId
+  );
 
   if (!repliedMessage) {
     return {
