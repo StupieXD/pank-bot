@@ -17,6 +17,8 @@ import { waitForAuditLogEntry } from '../../services/auditLogService.js';
 const EMBED_COLOUR = 0xe74c3c;
 const MAX_FIELD_LENGTH = 900;
 const MAX_LIST_LENGTH = 900;
+const AUDIT_MATCH_WINDOW_MS = 15000;
+const usedAuditEntryIds = new Map();
 
 export async function handleMessageDelete(message) {
   const cached = getCachedMessage(message.id);
@@ -41,9 +43,11 @@ export async function handleMessageDelete(message) {
       return;
     }
 
+    const deletionObservedAt = Date.now();
     const auditEntry = await findMessageDeleteAuditEntry({
       message,
-      messageData
+      messageData,
+      deletionObservedAt
     });
 
     const deletedTimestamp = Math.floor(Date.now() / 1000);
@@ -162,26 +166,67 @@ export async function handleMessageDelete(message) {
   }
 }
 
-async function findMessageDeleteAuditEntry({ message, messageData }) {
+async function findMessageDeleteAuditEntry({
+  message,
+  messageData,
+  deletionObservedAt
+}) {
   if (!message.guild) return null;
 
-  return waitForAuditLogEntry({
+  pruneUsedAuditEntries();
+
+  const entry = await waitForAuditLogEntry({
     guild: message.guild,
     type: AuditLogEvent.MessageDelete,
-    timeout: 3000,
-    match: (entry) => {
-      const recent = Date.now() - entry.createdTimestamp < 10000;
-      const sameChannel =
-        entry.extra?.channel?.id === messageData.channelId ||
-        entry.extra?.channelId === messageData.channelId;
-      const sameTarget =
-        entry.target?.id === messageData.userId ||
-        entry.targetId === messageData.userId;
-      const singleDelete = !entry.extra?.count || entry.extra.count === 1;
+    timeout: 5000,
+    interval: 250,
+    limit: 10,
+    match: (candidate) => {
+      const entryId = candidate.id;
+      const createdAt = candidate.createdTimestamp;
+      const executorId = candidate.executor?.id;
+      const targetId = candidate.target?.id ?? candidate.targetId;
+      const channelId =
+        candidate.extra?.channel?.id ?? candidate.extra?.channelId;
+      const count = candidate.extra?.count ?? 1;
 
-      return recent && sameChannel && sameTarget && singleDelete;
+      const unused = entryId && !usedAuditEntryIds.has(entryId);
+      const withinWindow =
+        Number.isFinite(createdAt) &&
+        createdAt >= deletionObservedAt - 2000 &&
+        createdAt <= deletionObservedAt + AUDIT_MATCH_WINDOW_MS;
+      const sameChannel = channelId === messageData.channelId;
+      const sameTarget = targetId === messageData.userId;
+      const singleDelete = count === 1;
+      const moderatorAction =
+        Boolean(executorId) && executorId !== messageData.userId;
+
+      return (
+        unused &&
+        withinWindow &&
+        sameChannel &&
+        sameTarget &&
+        singleDelete &&
+        moderatorAction
+      );
     }
   });
+
+  if (entry?.id) {
+    usedAuditEntryIds.set(entry.id, Date.now());
+  }
+
+  return entry;
+}
+
+function pruneUsedAuditEntries() {
+  const cutoff = Date.now() - 60000;
+
+  for (const [entryId, usedAt] of usedAuditEntryIds) {
+    if (usedAt < cutoff) {
+      usedAuditEntryIds.delete(entryId);
+    }
+  }
 }
 
 function buildMessageDataFromMessage(message) {
@@ -261,9 +306,8 @@ function formatDeletionActor(auditEntry, messageData) {
   }
 
   return (
-    `<@${messageData.userId}>\n` +
-    '**Likely self-deleted**\n' +
-    '*No matching audit-log entry was found.*'
+    '**Unknown**\n' +
+    '*No matching moderator audit entry was found.*'
   );
 }
 
