@@ -36,7 +36,25 @@ export function initialiseDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_moderation_cases_status
       ON moderation_cases (guild_id, status);
+
+    CREATE TABLE IF NOT EXISTS moderation_case_edits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      moderation_case_id INTEGER NOT NULL,
+      guild_id TEXT NOT NULL,
+      case_number INTEGER NOT NULL,
+      edited_by TEXT NOT NULL,
+      previous_reason TEXT NOT NULL,
+      new_reason TEXT NOT NULL,
+      edited_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (moderation_case_id)
+        REFERENCES moderation_cases (id)
+        ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_moderation_case_edits_case
+      ON moderation_case_edits (guild_id, case_number, edited_at);
   `);
 
-  console.log('✅ Database initialised.');
+  console.log('â Database initialised.');
 }

@@ -107,7 +107,7 @@ export async function buildModerationCaseEmbed({
       }
     )
     .setFooter({
-      text: `${caseStyle.label} case #${moderationCase.caseNumber}`
+      text: `Case #${moderationCase.caseNumber} \u2022 ${statusStyle.label} ${caseStyle.label}`
     });
 
   if (targetUser) {
@@ -116,6 +116,14 @@ export async function buildModerationCaseEmbed({
         size: 256
       })
     );
+  }
+
+  if (moderationCase.edits?.length) {
+    embed.addFields({
+      name: `\u270F\uFE0F Reason Edit History (${moderationCase.edits.length})`,
+      value: formatReasonEditHistory(moderationCase.edits),
+      inline: false
+    });
   }
 
   if (moderationCase.expiresAt) {
@@ -177,6 +185,42 @@ export function formatDiscordTimestamp(value) {
   return `<t:${timestamp}:R>\n<t:${timestamp}:F>`;
 }
 
+function formatReasonEditHistory(edits) {
+  const recentEdits = edits.slice(-3);
+  const hiddenCount = Math.max(0, edits.length - recentEdits.length);
+
+  const entries = recentEdits.map((edit, index) => {
+    const editNumber = hiddenCount + index + 1;
+    const timestamp = formatDiscordTimestamp(edit.editedAt);
+
+    return (
+      `**Edit #${editNumber}** \u2022 <@${edit.editedBy}>\n` +
+      `${timestamp}\n\n` +
+      `**Old**\n${truncateText(edit.previousReason, 160)}\n\n` +
+      `\u2B07\uFE0F\n\n` +
+      `**New**\n${truncateText(edit.newReason, 160)}`
+    );
+  });
+
+  if (hiddenCount > 0) {
+    entries.unshift(
+      `*${hiddenCount} earlier edit${hiddenCount === 1 ? '' : 's'} not shown.*`
+    );
+  }
+
+  return entries.join('\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n');
+}
+
+function truncateText(value, maximumLength) {
+  const text = String(value ?? '');
+
+  if (text.length <= maximumLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maximumLength - 3)}...`;
+}
+
 function getCaseStyle(caseType) {
   return CASE_STYLES[caseType] ?? {
     label: toTitleCase(caseType || 'unknown'),
@@ -203,7 +247,7 @@ function formatUser(userId, user) {
     lines.push(user.tag);
   }
 
-  lines.push(`\`${userId}\``);
+  lines.push(`**User ID:** \`${userId}\``);
   return lines.join('\n');
 }
 

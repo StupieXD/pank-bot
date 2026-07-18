@@ -293,6 +293,105 @@ export function purgeModerationCase({
   return Number(result.changes) > 0;
 }
 
+
+export function updateModerationCaseReason({
+  guildId,
+  caseNumber,
+  editedBy,
+  newReason
+}) {
+  validateRequiredString(guildId, 'guildId');
+  validateCaseNumber(caseNumber);
+  validateRequiredString(editedBy, 'editedBy');
+  validateRequiredString(newReason, 'newReason');
+
+  const existingCase = getModerationCase(
+    guildId,
+    caseNumber
+  );
+
+  if (!existingCase) {
+    return null;
+  }
+
+  const trimmedReason = newReason.trim();
+
+  if (trimmedReason === existingCase.reason) {
+    throw new Error(
+      'The new warning reason is the same as the current reason.'
+    );
+  }
+
+  const database = getDatabase();
+
+  database.exec('BEGIN IMMEDIATE;');
+
+  try {
+    database
+      .prepare(`
+        INSERT INTO moderation_case_edits (
+          moderation_case_id,
+          guild_id,
+          case_number,
+          edited_by,
+          previous_reason,
+          new_reason
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        existingCase.id,
+        guildId,
+        caseNumber,
+        editedBy,
+        existingCase.reason,
+        trimmedReason
+      );
+
+    database
+      .prepare(`
+        UPDATE moderation_cases
+        SET reason = ?
+        WHERE guild_id = ?
+          AND case_number = ?
+      `)
+      .run(
+        trimmedReason,
+        guildId,
+        caseNumber
+      );
+
+    database.exec('COMMIT;');
+  } catch (error) {
+    database.exec('ROLLBACK;');
+    throw error;
+  }
+
+  return getModerationCase(guildId, caseNumber);
+}
+
+export function getModerationCaseEdits({
+  guildId,
+  caseNumber
+}) {
+  validateRequiredString(guildId, 'guildId');
+  validateCaseNumber(caseNumber);
+
+  const database = getDatabase();
+
+  const rows = database
+    .prepare(`
+      SELECT *
+      FROM moderation_case_edits
+      WHERE guild_id = ?
+        AND case_number = ?
+      ORDER BY edited_at ASC, id ASC
+    `)
+    .all(guildId, caseNumber);
+
+  return rows.map(mapModerationCaseEdit);
+}
+
 export function updateModerationCaseStatus({
   guildId,
   caseNumber,
@@ -350,7 +449,24 @@ function mapModerationCase(row) {
     removedAt: row.removed_at,
     removedBy: row.removed_by,
     removalReason: row.removal_reason,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    edits: getModerationCaseEdits({
+      guildId: row.guild_id,
+      caseNumber: Number(row.case_number)
+    })
+  };
+}
+
+function mapModerationCaseEdit(row) {
+  return {
+    id: Number(row.id),
+    moderationCaseId: Number(row.moderation_case_id),
+    guildId: row.guild_id,
+    caseNumber: Number(row.case_number),
+    editedBy: row.edited_by,
+    previousReason: row.previous_reason,
+    newReason: row.new_reason,
+    editedAt: row.edited_at
   };
 }
 
