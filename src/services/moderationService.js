@@ -4,7 +4,8 @@ import {
   getModerationCase,
   getModerationCasesForUser,
   purgeModerationCase,
-  removeModerationCase
+  removeModerationCase,
+  updateModerationCaseReason
 } from '../database/repositories/moderationCaseRepository.js';
 
 export const ModerationCaseType = Object.freeze({
@@ -149,6 +150,53 @@ export function removeWarning({
     caseNumber,
     removedBy: moderatorId,
     removalReason: normaliseReason(reason)
+  });
+}
+
+
+export function editWarning({
+  guildId,
+  caseNumber,
+  moderatorId,
+  reason
+}) {
+  validateRequiredId(guildId, 'guildId');
+  validateRequiredId(moderatorId, 'moderatorId');
+
+  const moderationCase = getModerationCase(
+    guildId,
+    caseNumber
+  );
+
+  if (!moderationCase) {
+    throw new Error(
+      `Case #${caseNumber} could not be found.`
+    );
+  }
+
+  if (
+    moderationCase.caseType !==
+    ModerationCaseType.WARNING
+  ) {
+    throw new Error(
+      `Case #${caseNumber} is not a warning.`
+    );
+  }
+
+  if (
+    moderationCase.status ===
+    ModerationCaseStatus.REMOVED
+  ) {
+    throw new Error(
+      `Warning case #${caseNumber} has already been removed.`
+    );
+  }
+
+  return updateModerationCaseReason({
+    guildId,
+    caseNumber,
+    editedBy: moderatorId,
+    newReason: normaliseReason(reason)
   });
 }
 
