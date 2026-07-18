@@ -120,7 +120,7 @@ export async function buildModerationCaseEmbed({
 
   if (moderationCase.edits?.length) {
     embed.addFields({
-      name: '\u270F\uFE0F Reason Edit History',
+      name: `\u270F\uFE0F Reason Edit History (${moderationCase.edits.length})`,
       value: formatReasonEditHistory(moderationCase.edits),
       inline: false
     });
@@ -194,20 +194,20 @@ function formatReasonEditHistory(edits) {
     const timestamp = formatDiscordTimestamp(edit.editedAt);
 
     return (
-      `**Edit ${editNumber}** by <@${edit.editedBy}>\n` +
-      `Previous: ${truncateText(edit.previousReason, 110)}\n` +
-      `Updated: ${truncateText(edit.newReason, 110)}\n` +
-      timestamp
+      `**Edit #${editNumber}** \u2022 <@${edit.editedBy}>\n` +
+      `${timestamp}\n\n` +
+      `**Previous reason**\n${truncateText(edit.previousReason, 160)}\n\n` +
+      `**Updated reason**\n${truncateText(edit.newReason, 160)}`
     );
   });
 
   if (hiddenCount > 0) {
     entries.unshift(
-      `${hiddenCount} earlier edit${hiddenCount === 1 ? '' : 's'} not shown.`
+      `*${hiddenCount} earlier edit${hiddenCount === 1 ? '' : 's'} not shown.*`
     );
   }
 
-  return entries.join('\n\n');
+  return entries.join('\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n');
 }
 
 function truncateText(value, maximumLength) {
