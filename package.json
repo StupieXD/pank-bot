@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "discord.js": "latest",
-    "dotenv": "latest"
+    "dotenv": "latest",
+    "diff": "latest"
   }
 }
