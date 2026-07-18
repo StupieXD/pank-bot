@@ -107,7 +107,7 @@ export async function buildModerationCaseEmbed({
       }
     )
     .setFooter({
-      text: `${caseStyle.label} case #${moderationCase.caseNumber}`
+      text: `Case #${moderationCase.caseNumber} \u2022 ${statusStyle.label} ${caseStyle.label}`
     });
 
   if (targetUser) {
@@ -196,8 +196,9 @@ function formatReasonEditHistory(edits) {
     return (
       `**Edit #${editNumber}** \u2022 <@${edit.editedBy}>\n` +
       `${timestamp}\n\n` +
-      `**Previous reason**\n${truncateText(edit.previousReason, 160)}\n\n` +
-      `**Updated reason**\n${truncateText(edit.newReason, 160)}`
+      `**Old**\n${truncateText(edit.previousReason, 160)}\n\n` +
+      `\u2B07\uFE0F\n\n` +
+      `**New**\n${truncateText(edit.newReason, 160)}`
     );
   });
 
@@ -246,7 +247,7 @@ function formatUser(userId, user) {
     lines.push(user.tag);
   }
 
-  lines.push(`\`${userId}\``);
+  lines.push(`**User ID:** \`${userId}\``);
   return lines.join('\n');
 }
 
