@@ -118,6 +118,14 @@ export async function buildModerationCaseEmbed({
     );
   }
 
+  if (moderationCase.edits?.length) {
+    embed.addFields({
+      name: '\u270F\uFE0F Reason Edit History',
+      value: formatReasonEditHistory(moderationCase.edits),
+      inline: false
+    });
+  }
+
   if (moderationCase.expiresAt) {
     embed.addFields({
       name: '\u23F1\uFE0F Expires',
@@ -175,6 +183,41 @@ export function formatDiscordTimestamp(value) {
 
   const timestamp = Math.floor(milliseconds / 1000);
   return `<t:${timestamp}:R>\n<t:${timestamp}:F>`;
+}
+
+function formatReasonEditHistory(edits) {
+  const recentEdits = edits.slice(-3);
+  const hiddenCount = Math.max(0, edits.length - recentEdits.length);
+
+  const entries = recentEdits.map((edit, index) => {
+    const editNumber = hiddenCount + index + 1;
+    const timestamp = formatDiscordTimestamp(edit.editedAt);
+
+    return (
+      `**Edit ${editNumber}** by <@${edit.editedBy}>\n` +
+      `Previous: ${truncateText(edit.previousReason, 110)}\n` +
+      `Updated: ${truncateText(edit.newReason, 110)}\n` +
+      timestamp
+    );
+  });
+
+  if (hiddenCount > 0) {
+    entries.unshift(
+      `${hiddenCount} earlier edit${hiddenCount === 1 ? '' : 's'} not shown.`
+    );
+  }
+
+  return entries.join('\n\n');
+}
+
+function truncateText(value, maximumLength) {
+  const text = String(value ?? '');
+
+  if (text.length <= maximumLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maximumLength - 3)}...`;
 }
 
 function getCaseStyle(caseType) {
