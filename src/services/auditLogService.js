@@ -2,8 +2,9 @@ export async function waitForAuditLogEntry({
   guild,
   type,
   match,
-  timeout = 3000,
-  interval = 500
+  timeout = 5000,
+  interval = 250,
+  limit = 10
 }) {
   const end = Date.now() + timeout;
 
@@ -11,7 +12,7 @@ export async function waitForAuditLogEntry({
     try {
       const logs = await guild.fetchAuditLogs({
         type,
-        limit: 5
+        limit
       });
 
       const entry = logs.entries.find(match);
