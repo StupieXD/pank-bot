@@ -13,6 +13,7 @@ export const ModerationCaseType = Object.freeze({
   NOTE: 'note',
   TIMEOUT: 'timeout',
   TEMPORARY_TIMEOUT: 'temporary_timeout',
+  KICK: 'kick',
   BAN: 'ban',
   TEMPORARY_BAN: 'temporary_ban',
   SOFTBAN: 'softban'
@@ -68,6 +69,69 @@ export function createNote({
     caseType: ModerationCaseType.NOTE,
     reason: normaliseReason(reason),
     status: ModerationCaseStatus.ACTIVE
+  });
+}
+
+
+export function createTimeout({
+  guildId,
+  userId,
+  moderatorId,
+  reason,
+  expiresAt
+}) {
+  validateModerationTarget({
+    guildId,
+    userId,
+    moderatorId
+  });
+
+  if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime())) {
+    throw new Error('A valid timeout expiry is required.');
+  }
+
+  return createModerationCase({
+    guildId,
+    userId,
+    moderatorId,
+    caseType: ModerationCaseType.TEMPORARY_TIMEOUT,
+    reason: normaliseReason(reason),
+    status: ModerationCaseStatus.ACTIVE,
+    expiresAt
+  });
+}
+
+export function removeLatestTimeout({
+  guildId,
+  userId,
+  moderatorId,
+  reason
+}) {
+  validateRequiredId(guildId, 'guildId');
+  validateRequiredId(userId, 'userId');
+  validateRequiredId(moderatorId, 'moderatorId');
+
+  const timeoutCases = getModerationCasesForUser(
+    guildId,
+    userId,
+    {
+      includeRemoved: false,
+      caseType: ModerationCaseType.TEMPORARY_TIMEOUT,
+      limit: 1
+    }
+  );
+
+  const timeoutCase = timeoutCases[0] ?? null;
+
+  if (!timeoutCase) {
+    return null;
+  }
+
+  return removeModerationCase({
+    guildId,
+    caseNumber: timeoutCase.caseNumber,
+    removedBy: moderatorId,
+    removalReason: normaliseReason(reason)
   });
 }
 
