@@ -39,7 +39,7 @@ export async function execute(interaction) {
 
     if (!targetMember) {
       return interaction.editReply({
-        content: '❌ That user is not currently in this server.'
+        content: 'Error: That user is not currently in this server.'
       });
     }
 
@@ -47,13 +47,13 @@ export async function execute(interaction) {
 
     if (validationError) {
       return interaction.editReply({
-        content: `❌ ${validationError}`
+        content: `Error: ${validationError}`
       });
     }
 
     if (!targetMember.isCommunicationDisabled()) {
       return interaction.editReply({
-        content: '❌ That member does not currently have an active timeout.'
+        content: 'Error: That member does not currently have an active timeout.'
       });
     }
 
@@ -68,16 +68,16 @@ export async function execute(interaction) {
 
     return interaction.editReply({
       content:
-        `✅ Removed the timeout from <@${targetUser.id}>.` +
+        `Success: Removed the timeout from <@${targetUser.id}>.` +
         (removedCase
           ? `\nCase **#${removedCase.caseNumber}** has been marked as removed.`
           : '\nNo matching Pank timeout case was found, so only the Discord timeout was removed.')
     });
   } catch (error) {
-    console.error('❌ Failed to remove timeout:', error);
+    console.error('Error: Failed to remove timeout:', error);
 
     return interaction.editReply({
-      content: '❌ The timeout could not be removed. Check Pank’s permissions and the bot logs.'
+      content: "Error: The timeout could not be removed. Check Pank's permissions and the bot logs."
     });
   }
 }
@@ -92,7 +92,7 @@ function validateTarget(interaction, targetMember) {
   }
 
   if (!targetMember.moderatable) {
-    return 'Pank cannot modify this member. Check Pank’s role position and permissions.';
+    return "Pank cannot modify this member. Check Pank's role position and permissions.";
   }
 
   if (
