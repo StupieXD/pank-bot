@@ -5,7 +5,7 @@ import {
   ButtonStyle,
   EmbedBuilder
 } from 'discord.js';
-import { diffLines } from 'diff';
+import { diffWordsWithSpace } from 'diff';
 
 import { config } from '../../config/config.js';
 
@@ -141,44 +141,54 @@ function buildMessageDiff(before, after) {
   const normalisedBefore = before || '[No text content]';
   const normalisedAfter = after || '[No text content]';
 
-  const changes = diffLines(normalisedBefore, normalisedAfter);
+  const changes = diffWordsWithSpace(
+    normalisedBefore,
+    normalisedAfter
+  );
 
-  const removedLines = [];
-  const addedLines = [];
+  const removedPlainParts = [];
+  const addedPlainParts = [];
+  const removedFormattedParts = [];
+  const addedFormattedParts = [];
+  let hasRemovedContent = false;
+  let hasAddedContent = false;
 
   for (const change of changes) {
-    if (!change.added && !change.removed) continue;
-
-    const lines = splitIntoLines(change.value);
+    const safeValue = escapeDiscordMarkdown(change.value);
 
     if (change.removed) {
-      removedLines.push(...lines);
+      hasRemovedContent = true;
+      removedPlainParts.push(change.value);
+      removedFormattedParts.push(formatRemovedText(safeValue));
+      continue;
     }
 
     if (change.added) {
-      addedLines.push(...lines);
+      hasAddedContent = true;
+      addedPlainParts.push(change.value);
+      addedFormattedParts.push(formatAddedText(safeValue));
+      continue;
     }
+
+    removedFormattedParts.push(safeValue);
+    addedFormattedParts.push(safeValue);
   }
 
-  const removedText =
-    removedLines.length > 0
-      ? removedLines.join('\n')
-      : 'Nothing removed';
+  const removedText = hasRemovedContent
+    ? removedPlainParts.join('')
+    : 'Nothing removed';
 
-  const addedText =
-    addedLines.length > 0
-      ? addedLines.join('\n')
-      : 'Nothing added';
+  const addedText = hasAddedContent
+    ? addedPlainParts.join('')
+    : 'Nothing added';
 
-  const removedEmbedText = formatChangeSection(
-    removedText,
-    'Nothing removed'
-  );
+  const removedEmbedText = hasRemovedContent
+    ? removedFormattedParts.join('')
+    : '*Nothing removed*';
 
-  const addedEmbedText = formatChangeSection(
-    addedText,
-    'Nothing added'
-  );
+  const addedEmbedText = hasAddedContent
+    ? addedFormattedParts.join('')
+    : '*Nothing added*';
 
   const requiresAttachment =
     removedEmbedText.length > MAX_FIELD_LENGTH ||
@@ -186,36 +196,43 @@ function buildMessageDiff(before, after) {
 
   return {
     removedEmbedText: requiresAttachment
-      ? createSectionPreview(removedText, 'Nothing removed')
+      ? createFormattedPreview(
+          removedEmbedText,
+          'Full removed text is attached.'
+        )
       : removedEmbedText,
     addedEmbedText: requiresAttachment
-      ? createSectionPreview(addedText, 'Nothing added')
+      ? createFormattedPreview(
+          addedEmbedText,
+          'Full added text is attached.'
+        )
       : addedEmbedText,
     fileText: buildDiffFile(before, after, removedText, addedText),
     requiresAttachment
   };
 }
 
-function formatChangeSection(text, emptyMessage) {
-  if (text === emptyMessage) {
-    return `*${emptyMessage}*`;
-  }
+function formatRemovedText(text) {
+  if (!text) return '';
 
-  const safeText = sanitiseForCodeBlock(text);
-
-  return `\`\`\`\n${safeText}\n\`\`\``;
+  return `~~${text}~~`;
 }
 
-function createSectionPreview(text, emptyMessage) {
-  if (text === emptyMessage) {
-    return `*${emptyMessage}*`;
-  }
+function formatAddedText(text) {
+  if (!text) return '';
 
-  const safeText = sanitiseForCodeBlock(text);
-  const availableLength = MAX_FIELD_LENGTH - 40;
-  const shortened = shortenText(safeText, availableLength);
+  return `**${text}**`;
+}
 
-  return `\`\`\`\n${shortened}\n\`\`\``;
+function createFormattedPreview(text, suffix) {
+  const availableLength = MAX_FIELD_LENGTH - suffix.length - 8;
+  const shortened = shortenText(text, availableLength);
+
+  return `${shortened}\n\n*${suffix}*`;
+}
+
+function escapeDiscordMarkdown(text) {
+  return text.replace(/([\\`*_{}\[\]()<>#+\-.!|~])/g, '\\$1');
 }
 
 function buildDiffFile(before, after, removedText, addedText) {
