@@ -52,7 +52,7 @@ export async function execute(interaction) {
 
     if (!targetMember) {
       return interaction.editReply({
-        content: 'â That user is not currently in this server.'
+        content: 'Error: That user is not currently in this server.'
       });
     }
 
@@ -60,7 +60,7 @@ export async function execute(interaction) {
 
     if (validationError) {
       return interaction.editReply({
-        content: `â ${validationError}`
+        content: `Error: ${validationError}`
       });
     }
 
@@ -91,16 +91,16 @@ export async function execute(interaction) {
 
     return interaction.editReply({
       content:
-        `â Timed out <@${targetUser.id}> for **${formatDuration(durationMs)}**.\n` +
+        `Success: Timed out <@${targetUser.id}> for **${formatDuration(durationMs)}**.\n` +
         `Case: **#${moderationCase.caseNumber}**\n` +
         `Expires: <t:${expiryTimestamp}:R> (<t:${expiryTimestamp}:F>)\n\n` +
         `Use \`/case number:${moderationCase.caseNumber}\` to view the full case.`
     });
   } catch (error) {
-    console.error('â Failed to time out member:', error);
+    console.error('Error: Failed to time out member:', error);
 
     return interaction.editReply({
-      content: `â ${getPublicError(error)}`
+      content: `Error: ${getPublicError(error)}`
     });
   }
 }
@@ -119,7 +119,7 @@ function validateTarget(interaction, targetMember) {
   }
 
   if (!targetMember.moderatable) {
-    return 'Pank cannot time out this member. Check Pankâs role position and permissions.';
+    return "Pank cannot time out this member. Check Pank's role position and permissions.";
   }
 
   if (
@@ -143,5 +143,5 @@ function getPublicError(error) {
     return message;
   }
 
-  return 'The timeout could not be applied. Check Pankâs permissions and the bot logs.';
+  return "The timeout could not be applied. Check Pank's permissions and the bot logs.";
 }
