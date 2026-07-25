@@ -294,6 +294,33 @@ export function purgeModerationCase({
 }
 
 
+export function getExpiredTemporaryBans(nowIso = new Date().toISOString()) {
+  const database = getDatabase();
+  const rows = database.prepare(`
+    SELECT * FROM moderation_cases
+    WHERE case_type = 'temporary_ban'
+      AND status = 'active'
+      AND expires_at IS NOT NULL
+      AND expires_at <= ?
+    ORDER BY expires_at ASC
+  `).all(nowIso);
+  return rows.map(mapModerationCase);
+}
+
+export function expireModerationCase({ guildId, caseNumber, removalReason }) {
+  validateRequiredString(guildId, 'guildId');
+  validateCaseNumber(caseNumber);
+  validateRequiredString(removalReason, 'removalReason');
+  const database = getDatabase();
+  const result = database.prepare(`
+    UPDATE moderation_cases
+    SET status = 'expired', removed_at = ?, removal_reason = ?
+    WHERE guild_id = ? AND case_number = ? AND status = 'active'
+  `).run(new Date().toISOString(), removalReason.trim(), guildId, caseNumber);
+  if (Number(result.changes) === 0) return null;
+  return getModerationCase(guildId, caseNumber);
+}
+
 export function updateModerationCaseReason({
   guildId,
   caseNumber,

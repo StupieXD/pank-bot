@@ -5,7 +5,8 @@ import {
   getModerationCasesForUser,
   purgeModerationCase,
   removeModerationCase,
-  updateModerationCaseReason
+  updateModerationCaseReason,
+  expireModerationCase
 } from '../database/repositories/moderationCaseRepository.js';
 
 export const ModerationCaseType = Object.freeze({
@@ -13,6 +14,7 @@ export const ModerationCaseType = Object.freeze({
   NOTE: 'note',
   TIMEOUT: 'timeout',
   TEMPORARY_TIMEOUT: 'temporary_timeout',
+  KICK: 'kick',
   BAN: 'ban',
   TEMPORARY_BAN: 'temporary_ban',
   SOFTBAN: 'softban'
@@ -69,6 +71,103 @@ export function createNote({
     reason: normaliseReason(reason),
     status: ModerationCaseStatus.ACTIVE
   });
+}
+
+
+export function createTimeout({
+  guildId,
+  userId,
+  moderatorId,
+  reason,
+  expiresAt
+}) {
+  validateModerationTarget({
+    guildId,
+    userId,
+    moderatorId
+  });
+
+  if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime())) {
+    throw new Error('A valid timeout expiry is required.');
+  }
+
+  return createModerationCase({
+    guildId,
+    userId,
+    moderatorId,
+    caseType: ModerationCaseType.TEMPORARY_TIMEOUT,
+    reason: normaliseReason(reason),
+    status: ModerationCaseStatus.ACTIVE,
+    expiresAt
+  });
+}
+
+export function removeLatestTimeout({
+  guildId,
+  userId,
+  moderatorId,
+  reason
+}) {
+  validateRequiredId(guildId, 'guildId');
+  validateRequiredId(userId, 'userId');
+  validateRequiredId(moderatorId, 'moderatorId');
+
+  const timeoutCases = getModerationCasesForUser(
+    guildId,
+    userId,
+    {
+      includeRemoved: false,
+      caseType: ModerationCaseType.TEMPORARY_TIMEOUT,
+      limit: 1
+    }
+  );
+
+  const timeoutCase = timeoutCases[0] ?? null;
+
+  if (!timeoutCase) {
+    return null;
+  }
+
+  return removeModerationCase({
+    guildId,
+    caseNumber: timeoutCase.caseNumber,
+    removedBy: moderatorId,
+    removalReason: normaliseReason(reason)
+  });
+}
+
+export function createKick({ guildId, userId, moderatorId, reason }) {
+  validateModerationTarget({ guildId, userId, moderatorId });
+  return createModerationCase({ guildId, userId, moderatorId, caseType: ModerationCaseType.KICK, reason: normaliseReason(reason), status: ModerationCaseStatus.ACTIVE });
+}
+
+export function createBan({ guildId, userId, moderatorId, reason, expiresAt = null }) {
+  validateModerationTarget({ guildId, userId, moderatorId });
+  return createModerationCase({
+    guildId, userId, moderatorId,
+    caseType: expiresAt ? ModerationCaseType.TEMPORARY_BAN : ModerationCaseType.BAN,
+    reason: normaliseReason(reason), status: ModerationCaseStatus.ACTIVE, expiresAt
+  });
+}
+
+export function createSoftban({ guildId, userId, moderatorId, reason }) {
+  validateModerationTarget({ guildId, userId, moderatorId });
+  return createModerationCase({ guildId, userId, moderatorId, caseType: ModerationCaseType.SOFTBAN, reason: normaliseReason(reason), status: ModerationCaseStatus.EXPIRED });
+}
+
+export function removeLatestBan({ guildId, userId, moderatorId, reason }) {
+  validateRequiredId(guildId, 'guildId'); validateRequiredId(userId, 'userId'); validateRequiredId(moderatorId, 'moderatorId');
+  const cases = [
+    ...getModerationCasesForUser(guildId, userId, { includeRemoved: false, caseType: ModerationCaseType.TEMPORARY_BAN, limit: 1 }),
+    ...getModerationCasesForUser(guildId, userId, { includeRemoved: false, caseType: ModerationCaseType.BAN, limit: 1 })
+  ].sort((a,b)=>b.caseNumber-a.caseNumber);
+  const moderationCase = cases[0] ?? null;
+  if (!moderationCase || moderationCase.status !== ModerationCaseStatus.ACTIVE) return null;
+  return removeModerationCase({ guildId, caseNumber: moderationCase.caseNumber, removedBy: moderatorId, removalReason: normaliseReason(reason) });
+}
+
+export function expireTemporaryBan({ guildId, caseNumber, reason = 'Temporary ban expired automatically.' }) {
+  return expireModerationCase({ guildId, caseNumber, removalReason: reason });
 }
 
 export function getCase({

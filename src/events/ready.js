@@ -4,6 +4,7 @@ import { initialiseDatabase } from '../database/initialiseDatabase.js';
 import { initialiseMemberStateCache } from '../services/memberStateCacheService.js';
 import { registerSlashCommands } from '../services/registerSlashCommands.js';
 import { initialiseWebhookStateCache } from '../services/webhookStateCacheService.js';
+import { initialiseTemporaryBanScheduler } from '../modules/moderation/temporaryBanScheduler.js';
 
 export const name = Events.ClientReady;
 export const once = true;
@@ -16,4 +17,5 @@ export async function execute(client) {
   await registerSlashCommands(client);
   await initialiseMemberStateCache(client);
   await initialiseWebhookStateCache(client);
+  initialiseTemporaryBanScheduler(client);
 }

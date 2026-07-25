@@ -56,5 +56,5 @@ export function initialiseDatabase() {
       ON moderation_case_edits (guild_id, case_number, edited_at);
   `);
 
-  console.log('â Database initialised.');
+  console.log('Success: Database initialised.');
 }
