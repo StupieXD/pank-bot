@@ -1,10 +1,12 @@
 import {
   createModerationCase,
+  deleteModerationCase,
   getAdjacentModerationCase,
   getModerationCase,
   getModerationCasesForUser,
   purgeModerationCase,
   removeModerationCase,
+  resetModerationCasesForGuild,
   updateModerationCaseReason,
   expireModerationCase
 } from '../database/repositories/moderationCaseRepository.js';
@@ -168,6 +170,29 @@ export function removeLatestBan({ guildId, userId, moderatorId, reason }) {
 
 export function expireTemporaryBan({ guildId, caseNumber, reason = 'Temporary ban expired automatically.' }) {
   return expireModerationCase({ guildId, caseNumber, removalReason: reason });
+}
+
+export function getNotesForUser({ guildId, userId, includeRemoved = false, limit = 50 }) {
+  return getModerationCasesForUser(guildId, userId, {
+    includeRemoved,
+    caseType: ModerationCaseType.NOTE,
+    limit
+  });
+}
+
+export function getHistoryForUser({ guildId, userId, includeRemoved = true, limit = 50 }) {
+  return getModerationCasesForUser(guildId, userId, {
+    includeRemoved,
+    limit
+  });
+}
+
+export function permanentlyDeleteCase({ guildId, caseNumber }) {
+  return deleteModerationCase({ guildId, caseNumber });
+}
+
+export function resetCases({ guildId }) {
+  return resetModerationCasesForGuild(guildId);
 }
 
 export function getCase({

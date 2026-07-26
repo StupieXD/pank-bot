@@ -1,3 +1,20 @@
+## Moderator Notes and Unified History
+
+### Added
+
+- `/note` for private moderator notes.
+- `/notes` with paginated note history.
+- `/history` with a unified paginated moderation timeline.
+- `/deletecase` for permanently deleting one case and linked edit history.
+- `/resetcases` as an owner-only development reset that restarts case numbering at Case #1.
+
+### Behaviour
+
+- Notes use the existing moderation case system.
+- Deleting a warning case also removes that warning because the warning is stored as the case itself.
+- Linked reason-edit records are deleted automatically through database cascade rules.
+- Deleting or resetting records does not reverse active Discord timeouts or bans.
+
 # Changelog
 
 ## v2.4.0 - Timeout Moderation
