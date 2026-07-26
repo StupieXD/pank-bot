@@ -321,6 +321,54 @@ export function expireModerationCase({ guildId, caseNumber, removalReason }) {
   return getModerationCase(guildId, caseNumber);
 }
 
+
+export function deleteModerationCase({ guildId, caseNumber }) {
+  validateRequiredString(guildId, 'guildId');
+  validateCaseNumber(caseNumber);
+
+  const existingCase = getModerationCase(guildId, caseNumber);
+  if (!existingCase) return null;
+
+  const database = getDatabase();
+  database.exec('BEGIN IMMEDIATE;');
+  try {
+    database.prepare(`
+      DELETE FROM moderation_cases
+      WHERE guild_id = ? AND case_number = ?
+    `).run(guildId, caseNumber);
+    database.exec('COMMIT;');
+    return existingCase;
+  } catch (error) {
+    database.exec('ROLLBACK;');
+    throw error;
+  }
+}
+
+export function resetModerationCasesForGuild(guildId) {
+  validateRequiredString(guildId, 'guildId');
+  const database = getDatabase();
+
+  database.exec('BEGIN IMMEDIATE;');
+  try {
+    const countRow = database.prepare(`
+      SELECT COUNT(*) AS total
+      FROM moderation_cases
+      WHERE guild_id = ?
+    `).get(guildId);
+
+    database.prepare(`
+      DELETE FROM moderation_cases
+      WHERE guild_id = ?
+    `).run(guildId);
+
+    database.exec('COMMIT;');
+    return Number(countRow.total ?? 0);
+  } catch (error) {
+    database.exec('ROLLBACK;');
+    throw error;
+  }
+}
+
 export function updateModerationCaseReason({
   guildId,
   caseNumber,
