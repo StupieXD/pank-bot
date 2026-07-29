@@ -53,3 +53,19 @@
 
 - Replaced corrupted response characters with ASCII-safe `Error:` and `Success:` labels.
 - Confirmed `/untimeout` updates the existing timeout case instead of creating a new case.
+
+## v2.4.2 - Channel Moderation
+
+### Added
+
+- `/lock` with persistent storage of the previous `@everyone` send-message permissions.
+- `/unlock` with exact restoration of inherited, allowed or denied permission states.
+- `/slowmode` with support for seconds, minutes, hours and disabling slowmode.
+- `/clearreactions` for removing all reactions from a selected message.
+- SQLite-backed `channel_locks` storage so locks survive bot restarts.
+
+### Behaviour
+
+- Channel lock and slowmode changes use the existing channel update logger.
+- Commands include moderator and bot permission checks.
+- Unlock only operates when Pank has a saved lock state for that channel.
