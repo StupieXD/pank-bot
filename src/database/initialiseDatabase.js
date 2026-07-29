@@ -70,6 +70,20 @@ export function initialiseDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_channel_locks_guild
       ON channel_locks (guild_id);
+
+
+    CREATE TABLE IF NOT EXISTS guild_config (
+      guild_id TEXT NOT NULL,
+      setting_key TEXT NOT NULL,
+      setting_value TEXT NOT NULL,
+      updated_by TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (guild_id, setting_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_guild_config_guild
+      ON guild_config (guild_id);
   `);
 
   console.log('Success: Database initialised.');
