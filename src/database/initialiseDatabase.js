@@ -54,6 +54,22 @@ export function initialiseDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_moderation_case_edits_case
       ON moderation_case_edits (guild_id, case_number, edited_at);
+
+
+    CREATE TABLE IF NOT EXISTS channel_locks (
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      send_messages_state INTEGER NOT NULL,
+      send_messages_in_threads_state INTEGER NOT NULL,
+      moderator_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (guild_id, channel_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_channel_locks_guild
+      ON channel_locks (guild_id);
   `);
 
   console.log('Success: Database initialised.');
