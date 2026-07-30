@@ -40,7 +40,7 @@
 - GitHub to VPS deployment plan
 - Documentation
 
-## v2.4.1 - Kick and Ban Moderation
+## Development milestone - Kick and Ban Moderation
 
 - Added `/kick` with hierarchy checks, optional DM and automatic cases.
 - Added `/ban` with permanent and temporary bans, optional DM and message deletion.
@@ -54,7 +54,7 @@
 - Replaced corrupted response characters with ASCII-safe `Error:` and `Success:` labels.
 - Confirmed `/untimeout` updates the existing timeout case instead of creating a new case.
 
-## v2.4.2 - Channel Moderation
+## v2.4.0 - Channel Moderation
 
 ### Added
 
@@ -69,3 +69,30 @@
 - Channel lock and slowmode changes use the existing channel update logger.
 - Commands include moderator and bot permission checks.
 - Unlock only operates when Pank has a saved lock state for that channel.
+
+## v2.4.1 - Infrastructure and Configuration
+
+### Added
+
+- SQLite-backed per-server configuration storage.
+- `/config view` for viewing Pank's server settings.
+- `/config set-role`, `/config set-channel`, `/config set-category` and `/config set-user`.
+- `/config reset` for clearing individual settings.
+- Shared permission-check helpers for server, member and bot permissions.
+- Central button and modal interaction routing by custom-ID prefix.
+- Reusable expiring confirmation buttons with user ownership checks.
+- Shared ephemeral response helpers.
+
+### Improved
+
+- Added modal submission handling to the central interaction event.
+- Preserved compatibility with existing command-level button handlers.
+- Replaced repeated webhook permission stack traces with one concise startup warning.
+- Added clearer startup progress and completion logging.
+
+### Infrastructure prepared for
+
+- Anonymous Q&A recipient and identity-override configuration.
+- Moderator role configuration.
+- Active and closed ticket category configuration.
+- Ticket transcript/log channel configuration.
