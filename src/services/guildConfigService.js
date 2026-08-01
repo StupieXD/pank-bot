@@ -11,7 +11,8 @@ export const GUILD_CONFIG_KEYS = Object.freeze({
   CLOSED_TICKET_CATEGORY_ID: 'closed_ticket_category_id',
   TICKET_LOG_CHANNEL_ID: 'ticket_log_channel_id',
   ANONYMOUS_QA_RECIPIENT_ID: 'anonymous_qa_recipient_id',
-  ANONYMOUS_QA_OVERRIDE_ROLE_ID: 'anonymous_qa_override_role_id'
+  ANONYMOUS_QA_OVERRIDE_ROLE_ID: 'anonymous_qa_override_role_id',
+  EMERGENCY_CHANNEL_ID: 'emergency_channel_id'
 });
 
 const KNOWN_KEYS = new Set(Object.values(GUILD_CONFIG_KEYS));
