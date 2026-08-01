@@ -84,6 +84,67 @@ export function initialiseDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_guild_config_guild
       ON guild_config (guild_id);
+
+    CREATE TABLE IF NOT EXISTS anonymous_qa_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      subject TEXT,
+      question TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      answered_by TEXT,
+      answered_at TEXT,
+      archived_by TEXT,
+      archived_at TEXT,
+      reveal_count INTEGER NOT NULL DEFAULT 0,
+      last_revealed_by TEXT,
+      last_revealed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_anonymous_qa_guild_status
+      ON anonymous_qa_submissions (guild_id, status, created_at);
+
+    CREATE INDEX IF NOT EXISTS idx_anonymous_qa_user
+      ON anonymous_qa_submissions (guild_id, user_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS anonymous_qa_audit (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      submission_id INTEGER NOT NULL,
+      actor_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (submission_id) REFERENCES anonymous_qa_submissions(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_anonymous_qa_audit_submission
+      ON anonymous_qa_audit (guild_id, submission_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS lockdown_state (
+      guild_id TEXT PRIMARY KEY,
+      active INTEGER NOT NULL DEFAULT 0,
+      enabled_by TEXT,
+      reason TEXT,
+      enabled_at TEXT,
+      disabled_by TEXT,
+      disabled_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS lockdown_channel_states (
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      send_messages_state INTEGER NOT NULL,
+      send_messages_in_threads_state INTEGER NOT NULL,
+      create_public_threads_state INTEGER NOT NULL,
+      create_private_threads_state INTEGER NOT NULL,
+      PRIMARY KEY (guild_id, channel_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_lockdown_channel_states_guild
+      ON lockdown_channel_states (guild_id);
+
   `);
 
   console.log('Success: Database initialised.');
