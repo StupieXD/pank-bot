@@ -1,3 +1,24 @@
+# Changelog
+
+## v2.5.0 — Anonymous Q&A and Emergency Lockdown
+
+### Added
+- Complete Anonymous Q&A submission and administration workflow.
+- `/ask` modal with five-minute per-user cooldown.
+- `/qa list`, `/qa view`, `/qa answer`, `/qa archive`, `/qa reveal`, `/qa audit`, and `/qa export`.
+- SQLite-backed anonymous question records and immutable audit events.
+- Safeguarding identity reveal restricted to administrators or the configured override role.
+- `/lockdown enable`, `/lockdown disable`, and `/lockdown status`.
+- Exact per-channel permission snapshots and restoration after lockdown.
+- Automatic suspension of Anonymous Q&A while lockdown is active.
+- Optional emergency announcement channel configuration.
+- `/config setup-tickets` to create and configure `Tickets`, `Closed Tickets`, and `ticket-logs`.
+- Automatic private category permissions for moderators and Pank.
+
+### Changed
+- Package version increased to 2.5.0.
+- Ticket categories are positioned at the top of the channel list where Discord permits.
+
 ## Moderator Notes and Unified History
 
 ### Added
@@ -96,3 +117,12 @@
 - Moderator role configuration.
 - Active and closed ticket category configuration.
 - Ticket transcript/log channel configuration.
+
+### Q&A verification fixes
+
+- Reformatted the Q&A command files for readable review and maintenance.
+- Prevented the normal Q&A audit view from exposing the submitter identity.
+- Recorded submissions as Pank system actions instead of user-attributed audit entries.
+- Added explicit DM delivery success and failure handling.
+- Added clear responses when a question is already answered or cannot be archived.
+- Corrected the stale duplicate configuration import used by the source-tree verifier.
