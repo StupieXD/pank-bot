@@ -4,7 +4,7 @@
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
-- `/ask` modal with five-minute per-user cooldown.
+- `/question` modal with five-minute per-user cooldown.
 - `/qa list`, `/qa view`, `/qa answer`, `/qa archive`, `/qa reveal`, `/qa audit`, and `/qa export`.
 - SQLite-backed anonymous question records and immutable audit events.
 - Safeguarding identity reveal restricted to administrators or the configured override role.
