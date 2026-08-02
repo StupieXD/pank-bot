@@ -1,5 +1,8 @@
 import {
+  ActionRowBuilder,
   AttachmentBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder
@@ -8,10 +11,12 @@ import {
 import {
   addAnonymousQaAudit,
   archiveAnonymousQuestion,
+  permanentlyDeleteAnonymousQuestion,
   getAnonymousQuestion,
   listAnonymousQaAudit,
   listAnonymousQuestions,
   markAnonymousQuestionAnswered,
+  resetAnonymousQuestions,
   revealAnonymousQuestion
 } from '../../database/repositories/anonymousQaRepository.js';
 
@@ -102,6 +107,23 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((subcommand) =>
     subcommand
+      .setName('delete')
+      .setDescription('Permanently delete one question and its audit history.')
+      .addIntegerOption((option) =>
+        option
+          .setName('id')
+          .setDescription('Question ID')
+          .setRequired(true)
+          .setMinValue(1)
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('reset')
+      .setDescription('Owner only: delete all questions and restart numbering.')
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
       .setName('export')
       .setDescription('Export recent questions as a text file.')
       .addStringOption((option) =>
@@ -119,6 +141,23 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction) {
   const subcommand = interaction.options.getSubcommand();
   const status = interaction.options.getString('status');
+
+  if (subcommand === 'reset') {
+    if (interaction.user.id !== interaction.guild.ownerId) {
+      return interaction.reply({
+        content: 'Error: Only the server owner can reset Anonymous Q&A.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    return interaction.reply({
+      content:
+        '**DANGER: This permanently deletes every Anonymous Q&A question and audit record for this server.**\n\n' +
+        'The next question will be #1 when this is the only server using the Q&A database. This cannot be undone.',
+      components: [buildConfirmationRow('reset', interaction.user.id)],
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
   if (subcommand === 'list') {
     const questions = listAnonymousQuestions(interaction.guildId, {
@@ -168,6 +207,23 @@ export async function execute(interaction) {
   if (!question) {
     return interaction.reply({
       content: `Question #${id} was not found.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  if (subcommand === 'delete') {
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      return interaction.reply({
+        content: 'Error: Administrator permission is required to delete questions.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    return interaction.reply({
+      content:
+        `Warning: This will permanently delete Anonymous Question #${id} and its complete audit history.\n\n` +
+        'Archiving is reversible for record-keeping; deletion is not.',
+      components: [buildConfirmationRow('delete', interaction.user.id, id)],
       flags: MessageFlags.Ephemeral
     });
   }
@@ -271,6 +327,88 @@ export async function execute(interaction) {
   });
 }
 
+export async function handleButton(interaction) {
+  if (!interaction.customId.startsWith('qa-admin:')) return false;
+
+  const [, action, requesterId, idValue] = interaction.customId.split(':');
+
+  if (interaction.user.id !== requesterId) {
+    await interaction.reply({
+      content: 'Error: Only the person who opened this confirmation can use it.',
+      flags: MessageFlags.Ephemeral
+    });
+    return true;
+  }
+
+  if (action === 'cancel') {
+    await interaction.update({
+      content: 'Anonymous Q&A deletion cancelled.',
+      components: []
+    });
+    return true;
+  }
+
+  if (action === 'delete') {
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await interaction.update({
+        content: 'Error: Administrator permission is required.',
+        components: []
+      });
+      return true;
+    }
+
+    const id = Number(idValue);
+    const deleted = permanentlyDeleteAnonymousQuestion({
+      guildId: interaction.guildId,
+      id
+    });
+
+    await interaction.update({
+      content: deleted
+        ? `Permanently deleted Anonymous Question #${id} and its audit history.`
+        : `Error: Question #${id} could not be found.`,
+      components: []
+    });
+    return true;
+  }
+
+  if (action === 'reset') {
+    if (interaction.user.id !== interaction.guild.ownerId) {
+      await interaction.update({
+        content: 'Error: Only the server owner can reset Anonymous Q&A.',
+        components: []
+      });
+      return true;
+    }
+
+    const result = resetAnonymousQuestions({ guildId: interaction.guildId });
+    await interaction.update({
+      content:
+        `Reset complete. Permanently deleted ${result.deletedCount} question${result.deletedCount === 1 ? '' : 's'} and all linked audit records.\n` +
+        (result.numberingReset
+          ? 'The next Anonymous Q&A submission will be Question #1.'
+          : 'Other servers still have Q&A records, so the shared database sequence could not be reset to #1.'),
+      components: []
+    });
+    return true;
+  }
+
+  return false;
+}
+
+function buildConfirmationRow(action, userId, id = '') {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`qa-admin:${action}:${userId}:${id}`)
+      .setLabel(action === 'reset' ? 'Reset All Questions' : 'Permanently Delete')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`qa-admin:cancel:${userId}:${id}`)
+      .setLabel('Cancel')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
 function canReveal(interaction) {
   if (
     interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
@@ -288,7 +426,7 @@ function canReveal(interaction) {
 
 function formatSummary(question) {
   const preview = question.subject || question.question.slice(0, 80);
-  return `**#${question.id}** [${question.status}] â ${preview}`;
+  return `**#${question.id}** [${question.status}] - ${preview}`;
 }
 
 function formatFull(question) {
@@ -303,11 +441,11 @@ function formatFull(question) {
 
 function formatAuditEntry(entry) {
   if (entry.action === 'submitted') {
-    return `${entry.created_at} â **submitted** through Pank`;
+    return `${entry.created_at} - **submitted** through Pank`;
   }
 
   return (
-    `${entry.created_at} â **${entry.action}** by ` +
+    `${entry.created_at} - **${entry.action}** by ` +
     `<@${entry.actor_id}>`
   );
 }
