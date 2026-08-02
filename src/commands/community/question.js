@@ -147,7 +147,7 @@ registerModalHandler(MODAL_PREFIX, async (interaction) => {
   const delivery = await recipient
     .send({
       content:
-        `## Anonymous Question #${created.id}\n` +
+        `## Anonymous Question #${created.question_number}\n` +
         (subject ? `**Subject:** ${subject}\n` : '') +
         `**Question:**\n${question}\n\n` +
         `**Server:** ${interaction.guild.name}\n` +
@@ -169,7 +169,7 @@ registerModalHandler(MODAL_PREFIX, async (interaction) => {
       content:
         'Your question was saved, but Pank could not deliver it by DM. ' +
         'Please tell an administrator and quote question ' +
-        `#${created.id}.`
+        `#${created.question_number}.`
     });
   }
 
@@ -183,7 +183,7 @@ registerModalHandler(MODAL_PREFIX, async (interaction) => {
 
   return interaction.editReply({
     content:
-      `Success: Your anonymous question was submitted as **#${created.id}**. ` +
+      `Success: Your anonymous question was submitted as **#${created.question_number}**. ` +
       'Your identity is stored securely for safeguarding and is not shown ' +
       'to the recipient.'
   });
