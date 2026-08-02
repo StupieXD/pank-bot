@@ -134,3 +134,12 @@
 - Added explicit DM delivery success and failure handling.
 - Added clear responses when a question is already answered or cannot be archived.
 - Corrected the stale duplicate configuration import used by the source-tree verifier.
+
+## v2.5.0 Q&A reset reliability fixes
+
+- Replaced in-memory-style reset behaviour with self-contained Q&A button actions.
+- Deferred destructive button responses before database work.
+- Added guild-local Anonymous Q&A numbering.
+- Resetting one server now always makes its next question #1.
+- Deleting the final remaining question also resets that server's numbering to #1.
+- Added explicit transaction handling compatible with Node's built-in SQLite API.
