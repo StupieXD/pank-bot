@@ -88,6 +88,7 @@ export function initialiseDatabase() {
     CREATE TABLE IF NOT EXISTS anonymous_qa_submissions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       guild_id TEXT NOT NULL,
+      question_number INTEGER,
       user_id TEXT NOT NULL,
       subject TEXT,
       question TEXT NOT NULL,
@@ -107,6 +108,11 @@ export function initialiseDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_anonymous_qa_user
       ON anonymous_qa_submissions (guild_id, user_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS anonymous_qa_counters (
+      guild_id TEXT PRIMARY KEY,
+      next_number INTEGER NOT NULL DEFAULT 1
+    );
 
     CREATE TABLE IF NOT EXISTS anonymous_qa_audit (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,5 +153,62 @@ export function initialiseDatabase() {
 
   `);
 
+  migrateAnonymousQaNumbering(database);
+
   console.log('Success: Database initialised.');
+}
+
+
+function migrateAnonymousQaNumbering(database) {
+  const columns = database.prepare(
+    `PRAGMA table_info(anonymous_qa_submissions)`
+  ).all();
+
+  if (!columns.some((column) => column.name === 'question_number')) {
+    database.exec(
+      'ALTER TABLE anonymous_qa_submissions ADD COLUMN question_number INTEGER'
+    );
+  }
+
+  const guilds = database.prepare(`
+    SELECT DISTINCT guild_id
+    FROM anonymous_qa_submissions
+  `).all();
+
+  for (const { guild_id: guildId } of guilds) {
+    const questions = database.prepare(`
+      SELECT id, question_number
+      FROM anonymous_qa_submissions
+      WHERE guild_id = ?
+      ORDER BY id ASC
+    `).all(guildId);
+
+    let nextNumber = 1;
+    for (const question of questions) {
+      if (question.question_number == null) {
+        database.prepare(`
+          UPDATE anonymous_qa_submissions
+          SET question_number = ?
+          WHERE id = ?
+        `).run(nextNumber, question.id);
+      }
+
+      nextNumber = Math.max(
+        nextNumber + 1,
+        Number(question.question_number ?? nextNumber) + 1
+      );
+    }
+
+    database.prepare(`
+      INSERT INTO anonymous_qa_counters (guild_id, next_number)
+      VALUES (?, ?)
+      ON CONFLICT(guild_id)
+      DO UPDATE SET next_number = MAX(next_number, excluded.next_number)
+    `).run(guildId, nextNumber);
+  }
+
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_anonymous_qa_guild_number
+      ON anonymous_qa_submissions (guild_id, question_number)
+  `);
 }
