@@ -81,3 +81,62 @@ export function listAnonymousQaAudit(guildId, submissionId) {
     ORDER BY id ASC
   `).all(guildId, submissionId);
 }
+
+
+export function permanentlyDeleteAnonymousQuestion({ guildId, id }) {
+  const database = getDatabase();
+  const question = getAnonymousQuestion(guildId, id);
+  if (!question) return null;
+
+  database.prepare(`
+    DELETE FROM anonymous_qa_submissions
+    WHERE guild_id = ? AND id = ?
+  `).run(guildId, id);
+
+  return question;
+}
+
+export function resetAnonymousQuestions({ guildId }) {
+  const database = getDatabase();
+  const countRow = database.prepare(`
+    SELECT COUNT(*) AS count
+    FROM anonymous_qa_submissions
+    WHERE guild_id = ?
+  `).get(guildId);
+
+  const transaction = database.transaction(() => {
+    database.prepare(`
+      DELETE FROM anonymous_qa_audit
+      WHERE guild_id = ?
+    `).run(guildId);
+
+    database.prepare(`
+      DELETE FROM anonymous_qa_submissions
+      WHERE guild_id = ?
+    `).run(guildId);
+
+    const remaining = database.prepare(`
+      SELECT COUNT(*) AS count
+      FROM anonymous_qa_submissions
+    `).get();
+
+    if (Number(remaining.count) === 0) {
+      database.prepare(`
+        DELETE FROM sqlite_sequence
+        WHERE name = 'anonymous_qa_submissions'
+      `).run();
+
+      database.prepare(`
+        DELETE FROM sqlite_sequence
+        WHERE name = 'anonymous_qa_audit'
+      `).run();
+    }
+
+    return Number(remaining.count) === 0;
+  });
+
+  return {
+    deletedCount: Number(countRow.count),
+    numberingReset: transaction()
+  };
+}
