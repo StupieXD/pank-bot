@@ -1,3 +1,11 @@
+## Anonymous Q&A administration fixes
+
+- Replaced corrupted Unicode separators in `/qa list` and `/qa audit` with ASCII-safe formatting.
+- Kept `/qa list` ordered newest-first.
+- Added `/qa delete` for permanently deleting one question and its audit history.
+- Added owner-only `/qa reset` for clearing all Q&A records and resetting numbering when safe.
+- Clarified that archiving preserves a question and does not reset numbering.
+
 # Changelog
 
 ## v2.5.0 — Anonymous Q&A and Emergency Lockdown
