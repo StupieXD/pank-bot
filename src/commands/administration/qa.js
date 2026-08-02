@@ -153,7 +153,7 @@ export async function execute(interaction) {
     return interaction.reply({
       content:
         '**DANGER: This permanently deletes every Anonymous Q&A question and audit record for this server.**\n\n' +
-        'The next question will be #1 when this is the only server using the Q&A database. This cannot be undone.',
+        'The next question will be #1. This cannot be undone.',
       components: [buildConfirmationRow('reset', interaction.user.id)],
       flags: MessageFlags.Ephemeral
     });
@@ -182,7 +182,7 @@ export async function execute(interaction) {
     const body = questions
       .map(
         (question) =>
-          `#${question.id} [${question.status}] ` +
+          `#${question.question_number} [${question.status}] ` +
           `${question.subject || '(no subject)'}\n` +
           `${question.question}\n` +
           `Created: ${question.created_at}\n`
@@ -340,8 +340,10 @@ export async function handleButton(interaction) {
     return true;
   }
 
+  await interaction.deferUpdate();
+
   if (action === 'cancel') {
-    await interaction.update({
+    await interaction.editReply({
       content: 'Anonymous Q&A deletion cancelled.',
       components: []
     });
@@ -350,7 +352,7 @@ export async function handleButton(interaction) {
 
   if (action === 'delete') {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      await interaction.update({
+      await interaction.editReply({
         content: 'Error: Administrator permission is required.',
         components: []
       });
@@ -363,9 +365,12 @@ export async function handleButton(interaction) {
       id
     });
 
-    await interaction.update({
+    await interaction.editReply({
       content: deleted
-        ? `Permanently deleted Anonymous Question #${id} and its audit history.`
+        ? `Permanently deleted Anonymous Question #${id} and its audit history.` +
+          (deleted.numberingReset
+            ? '\nThe question list is now empty, so the next question will be #1.'
+            : '')
         : `Error: Question #${id} could not be found.`,
       components: []
     });
@@ -374,7 +379,7 @@ export async function handleButton(interaction) {
 
   if (action === 'reset') {
     if (interaction.user.id !== interaction.guild.ownerId) {
-      await interaction.update({
+      await interaction.editReply({
         content: 'Error: Only the server owner can reset Anonymous Q&A.',
         components: []
       });
@@ -382,12 +387,10 @@ export async function handleButton(interaction) {
     }
 
     const result = resetAnonymousQuestions({ guildId: interaction.guildId });
-    await interaction.update({
+    await interaction.editReply({
       content:
         `Reset complete. Permanently deleted ${result.deletedCount} question${result.deletedCount === 1 ? '' : 's'} and all linked audit records.\n` +
-        (result.numberingReset
-          ? 'The next Anonymous Q&A submission will be Question #1.'
-          : 'Other servers still have Q&A records, so the shared database sequence could not be reset to #1.'),
+        'The next Anonymous Q&A submission will be Question #1.',
       components: []
     });
     return true;
@@ -426,12 +429,12 @@ function canReveal(interaction) {
 
 function formatSummary(question) {
   const preview = question.subject || question.question.slice(0, 80);
-  return `**#${question.id}** [${question.status}] - ${preview}`;
+  return `**#${question.question_number}** [${question.status}] - ${preview}`;
 }
 
 function formatFull(question) {
   return (
-    `## Anonymous Question #${question.id}\n` +
+    `## Anonymous Question #${question.question_number}\n` +
     `**Status:** ${question.status}\n` +
     (question.subject ? `**Subject:** ${question.subject}\n` : '') +
     `**Question:**\n${question.question}\n\n` +
