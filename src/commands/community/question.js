@@ -3,6 +3,7 @@ import {
   MessageFlags,
   ModalBuilder,
   SlashCommandBuilder,
+  TextDisplayBuilder,
   TextInputBuilder,
   TextInputStyle
 } from 'discord.js';
@@ -52,6 +53,13 @@ export async function execute(interaction) {
     .setCustomId(`${MODAL_PREFIX}${interaction.guildId}`)
     .setTitle('Anonymous Q&A');
 
+  const privacyNotice = new TextDisplayBuilder().setContent(
+    '**Your question will not be posted anywhere publicly.**\n' +
+    'It is sent privately to Stu and will remain ' +
+    'strictly anonymous. Your identity can only be revealed by authorised ' +
+    'staff if the system is abused or there is a serious safeguarding concern.'
+  );
+
   const subjectInput = new TextInputBuilder()
     .setCustomId('subject')
     .setLabel('Subject (optional)')
@@ -67,10 +75,17 @@ export async function execute(interaction) {
     .setMinLength(3)
     .setMaxLength(1800);
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(subjectInput),
-    new ActionRowBuilder().addComponents(questionInput)
+  const abuseNotice = new TextDisplayBuilder().setContent(
+    '-# Any abuse of this system is logged and can be traced by authorised staff.'
   );
+
+  modal
+    .addTextDisplayComponents(privacyNotice)
+    .addComponents(
+      new ActionRowBuilder().addComponents(subjectInput),
+      new ActionRowBuilder().addComponents(questionInput)
+    )
+    .addTextDisplayComponents(abuseNotice);
 
   await interaction.showModal(modal);
 }
