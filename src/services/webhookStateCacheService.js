@@ -1,9 +1,14 @@
-import { DiscordAPIError } from 'discord.js';
+import { DiscordAPIError, PermissionFlagsBits } from 'discord.js';
 
 import { logInfo, logSuccess, logWarn } from '../core/logger.js';
 import { setWebhookStates } from '../utils/webhookStateCache.js';
 
+const initialisedClients = new WeakSet();
+
 export async function initialiseWebhookStateCache(client) {
+  if (initialisedClients.has(client)) return;
+  initialisedClients.add(client);
+
   logInfo('Initialising webhook state cache...');
 
   let cachedChannelCount = 0;
@@ -17,6 +22,16 @@ export async function initialiseWebhookStateCache(client) {
     );
 
     for (const channel of channels.values()) {
+      const botMember = guild.members.me;
+      const permissions = botMember
+        ? channel.permissionsFor(botMember)
+        : null;
+
+      if (!permissions?.has(PermissionFlagsBits.ManageWebhooks)) {
+        skippedPermissionCount++;
+        continue;
+      }
+
       try {
         const webhooks = await channel.fetchWebhooks();
 
