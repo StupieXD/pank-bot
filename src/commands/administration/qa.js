@@ -16,6 +16,7 @@ import {
   listAnonymousQaAudit,
   listAnonymousQuestions,
   markAnonymousQuestionAnswered,
+  markAnonymousQuestionSkipped,
   resetAnonymousQuestions,
   revealAnonymousQuestion
 } from '../../database/repositories/anonymousQaRepository.js';
@@ -41,6 +42,7 @@ export const data = new SlashCommandBuilder()
           .addChoices(
             { name: 'Open', value: 'open' },
             { name: 'Answered', value: 'answered' },
+            { name: 'Skipped', value: 'skipped' },
             { name: 'Archived', value: 'archived' }
           )
       )
@@ -67,6 +69,24 @@ export const data = new SlashCommandBuilder()
           .setDescription('Question ID')
           .setRequired(true)
           .setMinValue(1)
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('skip')
+      .setDescription('Mark a question as skipped.')
+      .addIntegerOption((option) =>
+        option
+          .setName('id')
+          .setDescription('Question ID')
+          .setRequired(true)
+          .setMinValue(1)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('reason')
+          .setDescription('Optional reason, such as duplicate or not for the live')
+          .setMaxLength(300)
       )
   )
   .addSubcommand((subcommand) =>
@@ -133,6 +153,7 @@ export const data = new SlashCommandBuilder()
           .addChoices(
             { name: 'Open', value: 'open' },
             { name: 'Answered', value: 'answered' },
+            { name: 'Skipped', value: 'skipped' },
             { name: 'Archived', value: 'archived' }
           )
       )
@@ -251,7 +272,7 @@ export async function execute(interaction) {
 
     addAnonymousQaAudit({
       guildId: interaction.guildId,
-      submissionId: id,
+      submissionId: question.id,
       actorId: interaction.user.id,
       action: 'marked_answered',
       details: null
@@ -259,6 +280,39 @@ export async function execute(interaction) {
 
     return interaction.reply({
       content: `Success: Question #${id} marked answered.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  if (subcommand === 'skip') {
+    const reason = interaction.options.getString('reason');
+    const changed = markAnonymousQuestionSkipped({
+      guildId: interaction.guildId,
+      id,
+      skippedBy: interaction.user.id,
+      reason
+    });
+
+    if (!changed) {
+      return interaction.reply({
+        content: `Question #${id} is already marked as skipped.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    addAnonymousQaAudit({
+      guildId: interaction.guildId,
+      submissionId: question.id,
+      actorId: interaction.user.id,
+      action: 'marked_skipped',
+      details: reason
+    });
+
+    return interaction.reply({
+      content:
+        `Success: Question #${id} marked skipped.` +
+        (reason ? `
+Reason: ${reason}` : ''),
       flags: MessageFlags.Ephemeral
     });
   }
@@ -279,7 +333,7 @@ export async function execute(interaction) {
 
     addAnonymousQaAudit({
       guildId: interaction.guildId,
-      submissionId: id,
+      submissionId: question.id,
       actorId: interaction.user.id,
       action: 'archived',
       details: null
