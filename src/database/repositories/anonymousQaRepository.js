@@ -80,69 +80,191 @@ export function getLatestSubmissionByUser(guildId, userId) {
 }
 
 export function markAnonymousQuestionAnswered({ guildId, id, answeredBy }) {
-  return getDatabase().prepare(`
-    UPDATE anonymous_qa_submissions
-    SET status = 'answered',
-        answered_by = ?,
-        answered_at = CURRENT_TIMESTAMP
-    WHERE guild_id = ?
-      AND question_number = ?
-      AND status != 'answered'
-  `).run(answeredBy, guildId, id).changes > 0;
+  return updateQuestionStatusWithAudit({
+    guildId,
+    questionNumber: id,
+    actorId: answeredBy,
+    nextStatus: 'answered',
+    alreadyStatus: 'answered',
+    action: 'marked_answered',
+    updateSql: `
+      UPDATE anonymous_qa_submissions
+      SET status = 'answered',
+          answered_by = ?,
+          answered_at = CURRENT_TIMESTAMP,
+          skipped_by = NULL,
+          skipped_at = NULL,
+          skipped_reason = NULL
+      WHERE id = ? AND status != 'answered'
+    `,
+    updateParameters: (question) => [answeredBy, question.id]
+  });
 }
 
-
 export function markAnonymousQuestionSkipped({ guildId, id, skippedBy, reason }) {
-  return getDatabase().prepare(`
-    UPDATE anonymous_qa_submissions
-    SET status = 'skipped',
-        skipped_by = ?,
-        skipped_at = CURRENT_TIMESTAMP,
-        skipped_reason = ?,
-        answered_by = NULL,
-        answered_at = NULL
-    WHERE guild_id = ?
-      AND question_number = ?
-      AND status != 'skipped'
-  `).run(skippedBy, reason || null, guildId, id).changes > 0;
+  return updateQuestionStatusWithAudit({
+    guildId,
+    questionNumber: id,
+    actorId: skippedBy,
+    nextStatus: 'skipped',
+    alreadyStatus: 'skipped',
+    action: 'marked_skipped',
+    details: reason || null,
+    updateSql: `
+      UPDATE anonymous_qa_submissions
+      SET status = 'skipped',
+          skipped_by = ?,
+          skipped_at = CURRENT_TIMESTAMP,
+          skipped_reason = ?,
+          answered_by = NULL,
+          answered_at = NULL
+      WHERE id = ? AND status != 'skipped'
+    `,
+    updateParameters: (question) => [skippedBy, reason || null, question.id]
+  });
 }
 
 export function archiveAnonymousQuestion({ guildId, id, archivedBy }) {
-  return getDatabase().prepare(`
-    UPDATE anonymous_qa_submissions
-    SET status = 'archived',
-        archived_by = ?,
-        archived_at = CURRENT_TIMESTAMP
-    WHERE guild_id = ? AND question_number = ?
-  `).run(archivedBy, guildId, id).changes > 0;
+  return updateQuestionStatusWithAudit({
+    guildId,
+    questionNumber: id,
+    actorId: archivedBy,
+    nextStatus: 'archived',
+    alreadyStatus: 'archived',
+    action: 'archived',
+    updateSql: `
+      UPDATE anonymous_qa_submissions
+      SET status = 'archived',
+          archived_by = ?,
+          archived_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND status != 'archived'
+    `,
+    updateParameters: (question) => [archivedBy, question.id]
+  });
+}
+
+function updateQuestionStatusWithAudit({
+  guildId,
+  questionNumber,
+  actorId,
+  nextStatus,
+  alreadyStatus,
+  action,
+  details = null,
+  updateSql,
+  updateParameters
+}) {
+  const database = getDatabase();
+  database.exec('BEGIN IMMEDIATE');
+
+  try {
+    const question = database.prepare(`
+      SELECT *
+      FROM anonymous_qa_submissions
+      WHERE guild_id = ? AND question_number = ?
+    `).get(guildId, questionNumber);
+
+    if (!question) {
+      database.exec('ROLLBACK');
+      return { changed: false, reason: 'not_found', question: null };
+    }
+
+    if (question.status === alreadyStatus) {
+      database.exec('ROLLBACK');
+      return { changed: false, reason: 'already_set', question };
+    }
+
+    const result = database.prepare(updateSql).run(...updateParameters(question));
+    if (result.changes === 0) {
+      database.exec('ROLLBACK');
+      return { changed: false, reason: 'not_changed', question };
+    }
+
+    insertAuditRow(database, {
+      guildId,
+      submissionId: question.id,
+      actorId,
+      action,
+      details
+    });
+
+    database.exec('COMMIT');
+    return {
+      changed: true,
+      reason: null,
+      question: { ...question, status: nextStatus }
+    };
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function revealAnonymousQuestion({ guildId, id, revealedBy }) {
   const database = getDatabase();
-  const question = getAnonymousQuestion(guildId, id);
-  if (!question) return null;
+  database.exec('BEGIN IMMEDIATE');
 
-  database.prepare(`
-    UPDATE anonymous_qa_submissions
-    SET reveal_count = reveal_count + 1,
-        last_revealed_by = ?,
-        last_revealed_at = CURRENT_TIMESTAMP
-    WHERE guild_id = ? AND question_number = ?
-  `).run(revealedBy, guildId, id);
+  try {
+    const question = database.prepare(`
+      SELECT *
+      FROM anonymous_qa_submissions
+      WHERE guild_id = ? AND question_number = ?
+    `).get(guildId, id);
 
-  addAnonymousQaAudit({
-    guildId,
-    submissionId: question.id,
-    actorId: revealedBy,
-    action: 'identity_revealed',
-    details: null
-  });
+    if (!question) {
+      database.exec('ROLLBACK');
+      return null;
+    }
 
-  return question;
+    database.prepare(`
+      UPDATE anonymous_qa_submissions
+      SET reveal_count = reveal_count + 1,
+          last_revealed_by = ?,
+          last_revealed_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(revealedBy, question.id);
+
+    insertAuditRow(database, {
+      guildId,
+      submissionId: question.id,
+      actorId: revealedBy,
+      action: 'identity_revealed',
+      details: null
+    });
+
+    database.exec('COMMIT');
+    return question;
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function addAnonymousQaAudit({ guildId, submissionId, actorId, action, details }) {
-  getDatabase().prepare(`
+  const database = getDatabase();
+  const parent = database.prepare(`
+    SELECT id
+    FROM anonymous_qa_submissions
+    WHERE id = ? AND guild_id = ?
+  `).get(submissionId, guildId);
+
+  if (!parent) {
+    throw new Error(
+      `Cannot add Anonymous Q&A audit entry: submission ${submissionId} does not exist in guild ${guildId}.`
+    );
+  }
+
+  insertAuditRow(database, {
+    guildId,
+    submissionId,
+    actorId,
+    action,
+    details
+  });
+}
+
+function insertAuditRow(database, { guildId, submissionId, actorId, action, details }) {
+  database.prepare(`
     INSERT INTO anonymous_qa_audit (
       guild_id,
       submission_id,
@@ -160,9 +282,10 @@ export function listAnonymousQaAudit(guildId, questionNumber) {
     INNER JOIN anonymous_qa_submissions AS submission
       ON submission.id = audit.submission_id
     WHERE audit.guild_id = ?
+      AND submission.guild_id = ?
       AND submission.question_number = ?
     ORDER BY audit.id ASC
-  `).all(guildId, questionNumber);
+  `).all(guildId, guildId, questionNumber);
 }
 
 export function permanentlyDeleteAnonymousQuestion({ guildId, id }) {
