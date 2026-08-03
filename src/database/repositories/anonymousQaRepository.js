@@ -91,6 +91,22 @@ export function markAnonymousQuestionAnswered({ guildId, id, answeredBy }) {
   `).run(answeredBy, guildId, id).changes > 0;
 }
 
+
+export function markAnonymousQuestionSkipped({ guildId, id, skippedBy, reason }) {
+  return getDatabase().prepare(`
+    UPDATE anonymous_qa_submissions
+    SET status = 'skipped',
+        skipped_by = ?,
+        skipped_at = CURRENT_TIMESTAMP,
+        skipped_reason = ?,
+        answered_by = NULL,
+        answered_at = NULL
+    WHERE guild_id = ?
+      AND question_number = ?
+      AND status != 'skipped'
+  `).run(skippedBy, reason || null, guildId, id).changes > 0;
+}
+
 export function archiveAnonymousQuestion({ guildId, id, archivedBy }) {
   return getDatabase().prepare(`
     UPDATE anonymous_qa_submissions
