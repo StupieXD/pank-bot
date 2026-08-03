@@ -1,3 +1,12 @@
+## v2.5.0 - Anonymous Q&A finalisation
+
+- Added a clear privacy notice to the `/question` form.
+- Clarified that questions are never posted publicly and remain anonymous unless the system is abused or a safeguarding concern requires an authorised identity reveal.
+- Added a small abuse-tracking notice at the bottom of the form.
+- Prevented webhook-cache API calls in channels where Pank does not have Manage Webhooks.
+- Prevented duplicate webhook-cache initialisation within the same process.
+
+
 ## Anonymous Q&A administration fixes
 
 - Replaced corrupted Unicode separators in `/qa list` and `/qa audit` with ASCII-safe formatting.
