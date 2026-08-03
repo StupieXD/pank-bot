@@ -13,7 +13,6 @@ export async function initialiseWebhookStateCache(client) {
 
   let cachedChannelCount = 0;
   let cachedWebhookCount = 0;
-  let skippedPermissionCount = 0;
   let failedCount = 0;
 
   for (const guild of client.guilds.cache.values()) {
@@ -28,7 +27,6 @@ export async function initialiseWebhookStateCache(client) {
         : null;
 
       if (!permissions?.has(PermissionFlagsBits.ManageWebhooks)) {
-        skippedPermissionCount++;
         continue;
       }
 
@@ -40,7 +38,6 @@ export async function initialiseWebhookStateCache(client) {
         cachedWebhookCount += webhooks.size;
       } catch (error) {
         if (isMissingPermissions(error)) {
-          skippedPermissionCount++;
           continue;
         }
 
@@ -56,13 +53,6 @@ export async function initialiseWebhookStateCache(client) {
   logSuccess(
     `Cached ${cachedWebhookCount} webhooks across ${cachedChannelCount} channels.`
   );
-
-  if (skippedPermissionCount > 0) {
-    logWarn(
-      `Skipped webhook caching in ${skippedPermissionCount} channel(s) ` +
-      'where Pank lacks Manage Webhooks.'
-    );
-  }
 
   if (failedCount > 0) {
     logWarn(`Webhook caching finished with ${failedCount} unexpected failure(s).`);
