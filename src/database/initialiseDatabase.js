@@ -157,6 +157,7 @@ export function initialiseDatabase() {
   `);
 
   migrateAnonymousQaNumbering(database);
+  migrateAnonymousQaAuditForeignKey(database);
 
   console.log('Success: Database initialised.');
 }
@@ -229,4 +230,81 @@ function migrateAnonymousQaNumbering(database) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_anonymous_qa_guild_number
       ON anonymous_qa_submissions (guild_id, question_number)
   `);
+}
+
+
+function migrateAnonymousQaAuditForeignKey(database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      migration_key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const migrationKey = 'anonymous_qa_audit_fk_v2';
+  const applied = database.prepare(`
+    SELECT migration_key
+    FROM schema_migrations
+    WHERE migration_key = ?
+  `).get(migrationKey);
+
+  if (applied) return;
+
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    database.exec(`
+      DROP INDEX IF EXISTS idx_anonymous_qa_audit_submission;
+      ALTER TABLE anonymous_qa_audit RENAME TO anonymous_qa_audit_legacy;
+
+      CREATE TABLE anonymous_qa_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        submission_id INTEGER NOT NULL,
+        actor_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        details TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (submission_id)
+          REFERENCES anonymous_qa_submissions(id)
+          ON DELETE CASCADE
+      );
+
+      INSERT INTO anonymous_qa_audit (
+        id,
+        guild_id,
+        submission_id,
+        actor_id,
+        action,
+        details,
+        created_at
+      )
+      SELECT
+        audit.id,
+        audit.guild_id,
+        audit.submission_id,
+        audit.actor_id,
+        audit.action,
+        audit.details,
+        audit.created_at
+      FROM anonymous_qa_audit_legacy AS audit
+      INNER JOIN anonymous_qa_submissions AS submission
+        ON submission.id = audit.submission_id
+       AND submission.guild_id = audit.guild_id;
+
+      DROP TABLE anonymous_qa_audit_legacy;
+
+      CREATE INDEX idx_anonymous_qa_audit_submission
+        ON anonymous_qa_audit (guild_id, submission_id, created_at);
+    `);
+
+    database.prepare(`
+      INSERT INTO schema_migrations (migration_key)
+      VALUES (?)
+    `).run(migrationKey);
+
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
 }
