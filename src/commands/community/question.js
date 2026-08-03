@@ -91,9 +91,11 @@ export async function execute(interaction) {
 }
 
 registerModalHandler(MODAL_PREFIX, async (interaction) => {
-  await interaction.deferReply({
-    flags: MessageFlags.Ephemeral
-  });
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
   if (isLockdownActive(interaction.guildId)) {
     return interaction.editReply({
