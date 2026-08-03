@@ -9,7 +9,6 @@ import {
 } from 'discord.js';
 
 import {
-  addAnonymousQaAudit,
   archiveAnonymousQuestion,
   permanentlyDeleteAnonymousQuestion,
   getAnonymousQuestion,
@@ -257,26 +256,20 @@ export async function execute(interaction) {
   }
 
   if (subcommand === 'answer') {
-    const changed = markAnonymousQuestionAnswered({
+    const result = markAnonymousQuestionAnswered({
       guildId: interaction.guildId,
       id,
       answeredBy: interaction.user.id
     });
 
-    if (!changed) {
+    if (!result.changed) {
       return interaction.reply({
-        content: `Question #${id} is already marked as answered.`,
+        content: result.reason === 'not_found'
+          ? `Question #${id} was not found.`
+          : `Question #${id} is already marked as answered.`,
         flags: MessageFlags.Ephemeral
       });
     }
-
-    addAnonymousQaAudit({
-      guildId: interaction.guildId,
-      submissionId: question.id,
-      actorId: interaction.user.id,
-      action: 'marked_answered',
-      details: null
-    });
 
     return interaction.reply({
       content: `Success: Question #${id} marked answered.`,
@@ -286,27 +279,21 @@ export async function execute(interaction) {
 
   if (subcommand === 'skip') {
     const reason = interaction.options.getString('reason');
-    const changed = markAnonymousQuestionSkipped({
+    const result = markAnonymousQuestionSkipped({
       guildId: interaction.guildId,
       id,
       skippedBy: interaction.user.id,
       reason
     });
 
-    if (!changed) {
+    if (!result.changed) {
       return interaction.reply({
-        content: `Question #${id} is already marked as skipped.`,
+        content: result.reason === 'not_found'
+          ? `Question #${id} was not found.`
+          : `Question #${id} is already marked as skipped.`,
         flags: MessageFlags.Ephemeral
       });
     }
-
-    addAnonymousQaAudit({
-      guildId: interaction.guildId,
-      submissionId: question.id,
-      actorId: interaction.user.id,
-      action: 'marked_skipped',
-      details: reason
-    });
 
     return interaction.reply({
       content:
@@ -318,26 +305,20 @@ Reason: ${reason}` : ''),
   }
 
   if (subcommand === 'archive') {
-    const changed = archiveAnonymousQuestion({
+    const result = archiveAnonymousQuestion({
       guildId: interaction.guildId,
       id,
       archivedBy: interaction.user.id
     });
 
-    if (!changed) {
+    if (!result.changed) {
       return interaction.reply({
-        content: `Question #${id} could not be archived.`,
+        content: result.reason === 'not_found'
+          ? `Question #${id} was not found.`
+          : `Question #${id} is already archived.`,
         flags: MessageFlags.Ephemeral
       });
     }
-
-    addAnonymousQaAudit({
-      guildId: interaction.guildId,
-      submissionId: question.id,
-      actorId: interaction.user.id,
-      action: 'archived',
-      details: null
-    });
 
     return interaction.reply({
       content: `Success: Question #${id} archived.`,
