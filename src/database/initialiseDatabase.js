@@ -97,6 +97,9 @@ export function initialiseDatabase() {
       answered_at TEXT,
       archived_by TEXT,
       archived_at TEXT,
+      skipped_by TEXT,
+      skipped_at TEXT,
+      skipped_reason TEXT,
       reveal_count INTEGER NOT NULL DEFAULT 0,
       last_revealed_by TEXT,
       last_revealed_at TEXT,
@@ -205,6 +208,21 @@ function migrateAnonymousQaNumbering(database) {
       ON CONFLICT(guild_id)
       DO UPDATE SET next_number = MAX(next_number, excluded.next_number)
     `).run(guildId, nextNumber);
+  }
+
+  const qaColumns = database.prepare(`
+    PRAGMA table_info(anonymous_qa_submissions)
+  `).all();
+  const qaColumnNames = new Set(qaColumns.map((column) => column.name));
+
+  if (!qaColumnNames.has('skipped_by')) {
+    database.exec('ALTER TABLE anonymous_qa_submissions ADD COLUMN skipped_by TEXT');
+  }
+  if (!qaColumnNames.has('skipped_at')) {
+    database.exec('ALTER TABLE anonymous_qa_submissions ADD COLUMN skipped_at TEXT');
+  }
+  if (!qaColumnNames.has('skipped_reason')) {
+    database.exec('ALTER TABLE anonymous_qa_submissions ADD COLUMN skipped_reason TEXT');
   }
 
   database.exec(`
