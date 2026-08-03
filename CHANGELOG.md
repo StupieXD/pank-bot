@@ -169,3 +169,13 @@
 - Added `/qa skip` with an optional reason.
 - Added the `skipped` filter to Q&A list and export commands.
 - Added skipped status details to `/qa view`.
+
+
+## v2.5.3 - Anonymous Q&A data integrity fixes
+
+- Rebuilt the Anonymous Q&A audit table with a verified foreign-key relationship.
+- Preserved valid existing audit records and removed orphaned audit rows during migration.
+- Made answer, skip and archive status updates atomic with their audit records.
+- Added parent-record validation before standalone audit inserts.
+- Improved Q&A audit lookups so guild and submission records must match.
+- Prevented partial status updates when audit creation fails.
