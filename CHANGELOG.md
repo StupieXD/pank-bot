@@ -162,3 +162,10 @@
 - Resetting one server now always makes its next question #1.
 - Deleting the final remaining question also resets that server's numbering to #1.
 - Added explicit transaction handling compatible with Node's built-in SQLite API.
+
+## v2.5.2 - Anonymous Q&A status fixes
+
+- Fixed `/qa answer` audit recording by using the internal submission ID.
+- Added `/qa skip` with an optional reason.
+- Added the `skipped` filter to Q&A list and export commands.
+- Added skipped status details to `/qa view`.
