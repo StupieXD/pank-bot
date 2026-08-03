@@ -1,3 +1,13 @@
+## v2.5.1 - Q&A stability and quiet webhook startup
+
+### Fixed
+- Prevented duplicate handling of the same button or modal interaction.
+- Made Anonymous Q&A modal acknowledgement safe when an interaction is already deferred.
+- Confirmed Q&A reset uses explicit SQLite transactions supported by DatabaseSync.
+- Silently skips webhook cache channels that return Missing Permissions.
+- Removed repeated webhook permission summaries from startup output.
+
+
 ## v2.5.0 - Anonymous Q&A finalisation
 
 - Added a clear privacy notice to the `/question` form.
@@ -17,7 +27,7 @@
 
 # Changelog
 
-## v2.5.0 — Anonymous Q&A and Emergency Lockdown
+## v2.5.0 â Anonymous Q&A and Emergency Lockdown
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
