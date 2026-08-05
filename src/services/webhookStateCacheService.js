@@ -1,14 +1,18 @@
-import { DiscordAPIError } from 'discord.js';
+import { DiscordAPIError, PermissionFlagsBits } from 'discord.js';
 
 import { logInfo, logSuccess, logWarn } from '../core/logger.js';
 import { setWebhookStates } from '../utils/webhookStateCache.js';
 
+const initialisedClients = new WeakSet();
+
 export async function initialiseWebhookStateCache(client) {
+  if (initialisedClients.has(client)) return;
+  initialisedClients.add(client);
+
   logInfo('Initialising webhook state cache...');
 
   let cachedChannelCount = 0;
   let cachedWebhookCount = 0;
-  let skippedPermissionCount = 0;
   let failedCount = 0;
 
   for (const guild of client.guilds.cache.values()) {
@@ -17,6 +21,15 @@ export async function initialiseWebhookStateCache(client) {
     );
 
     for (const channel of channels.values()) {
+      const botMember = guild.members.me;
+      const permissions = botMember
+        ? channel.permissionsFor(botMember)
+        : null;
+
+      if (!permissions?.has(PermissionFlagsBits.ManageWebhooks)) {
+        continue;
+      }
+
       try {
         const webhooks = await channel.fetchWebhooks();
 
@@ -25,7 +38,6 @@ export async function initialiseWebhookStateCache(client) {
         cachedWebhookCount += webhooks.size;
       } catch (error) {
         if (isMissingPermissions(error)) {
-          skippedPermissionCount++;
           continue;
         }
 
@@ -41,13 +53,6 @@ export async function initialiseWebhookStateCache(client) {
   logSuccess(
     `Cached ${cachedWebhookCount} webhooks across ${cachedChannelCount} channels.`
   );
-
-  if (skippedPermissionCount > 0) {
-    logWarn(
-      `Skipped webhook caching in ${skippedPermissionCount} channel(s) ` +
-      'where Pank lacks Manage Webhooks.'
-    );
-  }
 
   if (failedCount > 0) {
     logWarn(`Webhook caching finished with ${failedCount} unexpected failure(s).`);

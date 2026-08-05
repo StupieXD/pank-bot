@@ -1,3 +1,51 @@
+## v2.5.1 - Q&A stability and quiet webhook startup
+
+### Fixed
+- Prevented duplicate handling of the same button or modal interaction.
+- Made Anonymous Q&A modal acknowledgement safe when an interaction is already deferred.
+- Confirmed Q&A reset uses explicit SQLite transactions supported by DatabaseSync.
+- Silently skips webhook cache channels that return Missing Permissions.
+- Removed repeated webhook permission summaries from startup output.
+
+
+## v2.5.0 - Anonymous Q&A finalisation
+
+- Added a clear privacy notice to the `/question` form.
+- Clarified that questions are never posted publicly and remain anonymous unless the system is abused or a safeguarding concern requires an authorised identity reveal.
+- Added a small abuse-tracking notice at the bottom of the form.
+- Prevented webhook-cache API calls in channels where Pank does not have Manage Webhooks.
+- Prevented duplicate webhook-cache initialisation within the same process.
+
+
+## Anonymous Q&A administration fixes
+
+- Replaced corrupted Unicode separators in `/qa list` and `/qa audit` with ASCII-safe formatting.
+- Kept `/qa list` ordered newest-first.
+- Added `/qa delete` for permanently deleting one question and its audit history.
+- Added owner-only `/qa reset` for clearing all Q&A records and resetting numbering when safe.
+- Clarified that archiving preserves a question and does not reset numbering.
+
+# Changelog
+
+## v2.5.0 â Anonymous Q&A and Emergency Lockdown
+
+### Added
+- Complete Anonymous Q&A submission and administration workflow.
+- `/question` modal with five-minute per-user cooldown.
+- `/qa list`, `/qa view`, `/qa answer`, `/qa archive`, `/qa reveal`, `/qa audit`, and `/qa export`.
+- SQLite-backed anonymous question records and immutable audit events.
+- Safeguarding identity reveal restricted to administrators or the configured override role.
+- `/lockdown enable`, `/lockdown disable`, and `/lockdown status`.
+- Exact per-channel permission snapshots and restoration after lockdown.
+- Automatic suspension of Anonymous Q&A while lockdown is active.
+- Optional emergency announcement channel configuration.
+- `/config setup-tickets` to create and configure `Tickets`, `Closed Tickets`, and `ticket-logs`.
+- Automatic private category permissions for moderators and Pank.
+
+### Changed
+- Package version increased to 2.5.0.
+- Ticket categories are positioned at the top of the channel list where Discord permits.
+
 ## Moderator Notes and Unified History
 
 ### Added
@@ -96,3 +144,38 @@
 - Moderator role configuration.
 - Active and closed ticket category configuration.
 - Ticket transcript/log channel configuration.
+
+### Q&A verification fixes
+
+- Reformatted the Q&A command files for readable review and maintenance.
+- Prevented the normal Q&A audit view from exposing the submitter identity.
+- Recorded submissions as Pank system actions instead of user-attributed audit entries.
+- Added explicit DM delivery success and failure handling.
+- Added clear responses when a question is already answered or cannot be archived.
+- Corrected the stale duplicate configuration import used by the source-tree verifier.
+
+## v2.5.0 Q&A reset reliability fixes
+
+- Replaced in-memory-style reset behaviour with self-contained Q&A button actions.
+- Deferred destructive button responses before database work.
+- Added guild-local Anonymous Q&A numbering.
+- Resetting one server now always makes its next question #1.
+- Deleting the final remaining question also resets that server's numbering to #1.
+- Added explicit transaction handling compatible with Node's built-in SQLite API.
+
+## v2.5.2 - Anonymous Q&A status fixes
+
+- Fixed `/qa answer` audit recording by using the internal submission ID.
+- Added `/qa skip` with an optional reason.
+- Added the `skipped` filter to Q&A list and export commands.
+- Added skipped status details to `/qa view`.
+
+
+## v2.5.3 - Anonymous Q&A data integrity fixes
+
+- Rebuilt the Anonymous Q&A audit table with a verified foreign-key relationship.
+- Preserved valid existing audit records and removed orphaned audit rows during migration.
+- Made answer, skip and archive status updates atomic with their audit records.
+- Added parent-record validation before standalone audit inserts.
+- Improved Q&A audit lookups so guild and submission records must match.
+- Prevented partial status updates when audit creation fails.

@@ -1,5 +1,7 @@
 const buttonHandlers = new Map();
 const modalHandlers = new Map();
+const handledInteractionIds = new Set();
+const INTERACTION_ID_TTL_MS = 15 * 60 * 1000;
 
 export function registerButtonHandler(prefix, handler) {
   registerHandler(buttonHandlers, prefix, handler, 'button');
@@ -30,6 +32,10 @@ function registerHandler(registry, prefix, handler, type) {
 }
 
 async function routeInteraction(registry, interaction) {
+  if (handledInteractionIds.has(interaction.id)) {
+    return true;
+  }
+
   const entry = [...registry.entries()]
     .sort(([a], [b]) => b.length - a.length)
     .find(([prefix]) => interaction.customId.startsWith(prefix));
@@ -37,6 +43,12 @@ async function routeInteraction(registry, interaction) {
   if (!entry) return false;
 
   const [, handler] = entry;
+  handledInteractionIds.add(interaction.id);
+  const expiry = setTimeout(() => {
+    handledInteractionIds.delete(interaction.id);
+  }, INTERACTION_ID_TTL_MS);
+  expiry.unref?.();
+
   await handler(interaction);
   return true;
 }

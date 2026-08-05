@@ -12,6 +12,7 @@ import {
   setConfigValue
 } from '../../services/guildConfigService.js';
 import { requireManageGuild } from '../../utils/permissionChecks.js';
+import { ensureTicketInfrastructure } from '../../services/ticketInfrastructureService.js';
 
 const SETTING_CHOICES = [
   ['Moderator role', GUILD_CONFIG_KEYS.STAFF_ROLE_ID],
@@ -19,7 +20,8 @@ const SETTING_CHOICES = [
   ['Closed tickets category', GUILD_CONFIG_KEYS.CLOSED_TICKET_CATEGORY_ID],
   ['Ticket log channel', GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID],
   ['Anonymous Q&A recipient', GUILD_CONFIG_KEYS.ANONYMOUS_QA_RECIPIENT_ID],
-  ['Anonymous Q&A override role', GUILD_CONFIG_KEYS.ANONYMOUS_QA_OVERRIDE_ROLE_ID]
+  ['Anonymous Q&A override role', GUILD_CONFIG_KEYS.ANONYMOUS_QA_OVERRIDE_ROLE_ID],
+  ['Emergency announcement channel', GUILD_CONFIG_KEYS.EMERGENCY_CHANNEL_ID]
 ];
 
 export const data = new SlashCommandBuilder()
@@ -63,7 +65,8 @@ export const data = new SlashCommandBuilder()
           .setDescription('The channel setting to update')
           .setRequired(true)
           .addChoices(
-            { name: 'Ticket log channel', value: GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID }
+            { name: 'Ticket log channel', value: GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID },
+            { name: 'Emergency announcement channel', value: GUILD_CONFIG_KEYS.EMERGENCY_CHANNEL_ID }
           )
       )
       .addChannelOption((option) =>
@@ -118,6 +121,11 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((subcommand) =>
     subcommand
+      .setName('setup-tickets')
+      .setDescription('Automatically create and configure ticket categories and logs.')
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
       .setName('reset')
       .setDescription('Reset one configuration value.')
       .addStringOption((option) =>
@@ -140,6 +148,13 @@ export async function execute(interaction) {
 
   if (subcommand === 'view') {
     await showConfig(interaction);
+    return;
+  }
+
+  if (subcommand === 'setup-tickets') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const result = await ensureTicketInfrastructure(interaction.guild, interaction.user.id);
+    await interaction.editReply({ content: `Success: Ticket infrastructure is ready.\nOpen: <#${result.tickets.id}>\nClosed: <#${result.closed.id}>\nLogs: <#${result.log.id}>`, allowedMentions: { parse: [] } });
     return;
   }
 
