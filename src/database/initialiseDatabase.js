@@ -154,6 +154,80 @@ export function initialiseDatabase() {
     CREATE INDEX IF NOT EXISTS idx_lockdown_channel_states_guild
       ON lockdown_channel_states (guild_id);
 
+
+    CREATE TABLE IF NOT EXISTS ticket_counters (
+      guild_id TEXT PRIMARY KEY,
+      next_number INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      ticket_number INTEGER NOT NULL,
+      creator_id TEXT NOT NULL,
+      user_channel_id TEXT NOT NULL,
+      staff_channel_id TEXT NOT NULL,
+      channel_name TEXT,
+      subject TEXT NOT NULL,
+      details TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      claimed_by TEXT,
+      claimed_at TEXT,
+      closed_by TEXT,
+      closed_at TEXT,
+      close_reason TEXT,
+      reopened_by TEXT,
+      reopened_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (guild_id, ticket_number)
+    );
+    CREATE INDEX IF NOT EXISTS idx_tickets_channels ON tickets (guild_id, user_channel_id, staff_channel_id);
+    CREATE INDEX IF NOT EXISTS idx_tickets_creator ON tickets (guild_id, creator_id, status);
+
+    CREATE TABLE IF NOT EXISTS ticket_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      ticket_id INTEGER NOT NULL,
+      author_id TEXT NOT NULL,
+      author_type TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      attachments_json TEXT NOT NULL DEFAULT '[]',
+      source_message_id TEXT,
+      proxy_message_id TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages (guild_id, ticket_id, id);
+
+    CREATE TABLE IF NOT EXISTS ticket_audit (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      ticket_id INTEGER NOT NULL,
+      actor_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ticket_audit_ticket ON ticket_audit (guild_id, ticket_id, id);
+
+    CREATE TABLE IF NOT EXISTS ticket_case_links (
+      guild_id TEXT NOT NULL,
+      ticket_id INTEGER NOT NULL,
+      moderation_case_id INTEGER NOT NULL,
+      linked_by TEXT NOT NULL,
+      linked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (guild_id, ticket_id, moderation_case_id),
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+      FOREIGN KEY (moderation_case_id) REFERENCES moderation_cases(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ticket_case_links_ticket
+      ON ticket_case_links (guild_id, ticket_id);
+
+    CREATE INDEX IF NOT EXISTS idx_ticket_case_links_case
+      ON ticket_case_links (guild_id, moderation_case_id);
+
   `);
 
   migrateAnonymousQaNumbering(database);
