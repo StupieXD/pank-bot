@@ -24,7 +24,11 @@ export async function ensureTicketInfrastructure(guild, updatedBy) {
 
   let closed = resolveCategory(guild, getConfigValue(guild.id, GUILD_CONFIG_KEYS.CLOSED_TICKET_CATEGORY_ID));
   if (!closed) closed = await guild.channels.create({ name: 'Closed Tickets', type: ChannelType.GuildCategory, permissionOverwrites: overwrites, reason: 'Pank ticket infrastructure setup' });
-  await closed.setPosition(1).catch(() => null);
+  await closed.setPosition(2).catch(() => null);
+
+  let staff = resolveCategory(guild, getConfigValue(guild.id, GUILD_CONFIG_KEYS.TICKET_STAFF_CATEGORY_ID));
+  if (!staff) staff = await guild.channels.create({ name: 'Ticket Staff', type: ChannelType.GuildCategory, permissionOverwrites: overwrites, reason: 'Pank ticket infrastructure setup' });
+  await staff.setPosition(1).catch(() => null);
 
   let log = guild.channels.cache.get(getConfigValue(guild.id, GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID));
   if (!log || log.type !== ChannelType.GuildText) {
@@ -33,9 +37,10 @@ export async function ensureTicketInfrastructure(guild, updatedBy) {
 
   setConfigValue({ guildId: guild.id, key: GUILD_CONFIG_KEYS.TICKET_CATEGORY_ID, value: tickets.id, updatedBy });
   setConfigValue({ guildId: guild.id, key: GUILD_CONFIG_KEYS.CLOSED_TICKET_CATEGORY_ID, value: closed.id, updatedBy });
+  setConfigValue({ guildId: guild.id, key: GUILD_CONFIG_KEYS.TICKET_STAFF_CATEGORY_ID, value: staff.id, updatedBy });
   setConfigValue({ guildId: guild.id, key: GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID, value: log.id, updatedBy });
 
-  return { tickets, closed, log };
+  return { tickets, staff, closed, log };
 }
 
 function resolveCategory(guild, id) {
