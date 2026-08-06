@@ -10,6 +10,9 @@ export const GUILD_CONFIG_KEYS = Object.freeze({
   TICKET_CATEGORY_ID: 'ticket_category_id',
   CLOSED_TICKET_CATEGORY_ID: 'closed_ticket_category_id',
   TICKET_LOG_CHANNEL_ID: 'ticket_log_channel_id',
+  TICKET_STAFF_CATEGORY_ID: 'ticket_staff_category_id',
+  TICKET_PANEL_CHANNEL_ID: 'ticket_panel_channel_id',
+  TICKET_PANEL_MESSAGE_ID: 'ticket_panel_message_id',
   ANONYMOUS_QA_RECIPIENT_ID: 'anonymous_qa_recipient_id',
   ANONYMOUS_QA_OVERRIDE_ROLE_ID: 'anonymous_qa_override_role_id',
   EMERGENCY_CHANNEL_ID: 'emergency_channel_id'
