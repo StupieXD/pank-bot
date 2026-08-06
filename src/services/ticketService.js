@@ -1,38 +1,158 @@
-import { ChannelType, PermissionFlagsBits } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } from 'discord.js';
 import { ensureTicketInfrastructure } from './ticketInfrastructureService.js';
 import { GUILD_CONFIG_KEYS, getConfigValue } from './guildConfigService.js';
 import { createTicket, getTicketByChannel, addTicketMessage, addTicketAudit, updateTicketStatus } from '../database/repositories/ticketRepository.js';
 import { buildInternalTicketTranscript } from './ticketTranscriptService.js';
 
 export async function createLinkedTicket({ guild, creator, subject, details }) {
-  const { tickets, staff, closed, log } = await ensureTicketInfrastructure(guild, creator.id);
-  const staffRoleId = getConfigValue(guild.id, GUILD_CONFIG_KEYS.STAFF_ROLE_ID);
-  const nextName = `ticket-${Date.now().toString().slice(-6)}`;
-  const userChannel = await guild.channels.create({
-    name: nextName, type: ChannelType.GuildText, parent: tickets.id,
-    permissionOverwrites: [
-      { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: creator.id, allow: [PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.AttachFiles,PermissionFlagsBits.EmbedLinks] },
-      { id: staffRoleId, allow: [PermissionFlagsBits.ViewChannel,PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-      { id: guild.members.me.id, allow: [PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.ManageMessages,PermissionFlagsBits.AttachFiles,PermissionFlagsBits.EmbedLinks] }
-    ], reason: 'Pank ticket opened'
-  });
-  const staffChannel = await guild.channels.create({
-    name: `staff-${nextName}`, type: ChannelType.GuildText, parent: staff.id,
-    permissionOverwrites: [
-      { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: staffRoleId, allow: [PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.AttachFiles,PermissionFlagsBits.EmbedLinks] },
-      { id: guild.members.me.id, allow: [PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.ManageMessages,PermissionFlagsBits.AttachFiles,PermissionFlagsBits.EmbedLinks] }
-    ], reason: 'Pank private ticket staff channel'
-  });
-  const ticket = createTicket({ guildId:guild.id, creatorId:creator.id, userChannelId:userChannel.id, staffChannelId:staffChannel.id, subject, details });
-  const numberName=`ticket-${String(ticket.ticket_number).padStart(4,'0')}`;
-  await userChannel.setName(numberName);
-  await staffChannel.setName(`staff-${numberName}`);
-  await userChannel.send({ content:`<@${creator.id}>\n**Ticket #${ticket.ticket_number}: ${subject}**\n${details}\n\nA moderator will reply through Pank. Moderator identities remain private.` });
-  await staffChannel.send({ content:`**Staff workspace for Ticket #${ticket.ticket_number}**\nUser: <@${creator.id}> (${creator.id})\nSubject: ${subject}\nDetails: ${details}\n\nMessages typed here are automatically sent to the user-facing ticket by Pank.` });
-  await log.send({ content:`Ticket #${ticket.ticket_number} opened by <@${creator.id}>. User: <#${userChannel.id}> Staff: <#${staffChannel.id}>` }).catch(()=>null);
-  return { ticket, userChannel, staffChannel, closed, log };
+  const infrastructure = await ensureTicketInfrastructure(guild, creator.id);
+  const { tickets, staff, closed, log, staffRole } = infrastructure;
+  const botMember = guild.members.me;
+
+  if (!staffRole) {
+    throw new Error('The configured Moderator role could not be found.');
+  }
+
+  if (!botMember?.permissions.has(PermissionFlagsBits.ManageChannels)) {
+    throw new Error('Pank needs Manage Channels to create ticket channels.');
+  }
+
+  const temporaryName = `ticket-${Date.now().toString().slice(-6)}`;
+  let userChannel = null;
+  let staffChannel = null;
+
+  try {
+    userChannel = await guild.channels.create({
+      name: temporaryName,
+      type: ChannelType.GuildText,
+      parent: tickets.id,
+      permissionOverwrites: [
+        {
+          id: guild.roles.everyone.id,
+          deny: [PermissionFlagsBits.ViewChannel]
+        },
+        {
+          id: creator.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks
+          ]
+        },
+        {
+          id: staffRole.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.ReadMessageHistory
+          ],
+          deny: [PermissionFlagsBits.SendMessages]
+        },
+        {
+          id: botMember.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.ManageMessages,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks
+          ]
+        }
+      ],
+      reason: 'Pank ticket opened'
+    });
+
+    staffChannel = await guild.channels.create({
+      name: `staff-${temporaryName}`,
+      type: ChannelType.GuildText,
+      parent: staff.id,
+      permissionOverwrites: [
+        {
+          id: guild.roles.everyone.id,
+          deny: [PermissionFlagsBits.ViewChannel]
+        },
+        {
+          id: staffRole.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks
+          ]
+        },
+        {
+          id: botMember.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.ManageMessages,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks
+          ]
+        }
+      ],
+      reason: 'Pank private ticket staff channel'
+    });
+
+    const ticket = createTicket({
+      guildId: guild.id,
+      creatorId: creator.id,
+      userChannelId: userChannel.id,
+      staffChannelId: staffChannel.id,
+      subject,
+      details
+    });
+
+    const numberedName = `ticket-${String(ticket.ticket_number).padStart(4, '0')}`;
+    await userChannel.setName(numberedName);
+    await staffChannel.setName(`staff-${numberedName}`);
+
+    const closeRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`ticket-user:close:${ticket.id}:${creator.id}`)
+        .setLabel('Close Ticket')
+        .setEmoji('ð')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    await userChannel.send({
+      content: [
+        `<@${creator.id}>`,
+        `**Ticket #${ticket.ticket_number}: ${subject}**`,
+        details,
+        '',
+        'A moderator will reply through Pank. Individual moderator identities remain private.'
+      ].join('\n'),
+      components: [closeRow]
+    });
+
+    await staffChannel.send({
+      content: [
+        `**Staff workspace for Ticket #${ticket.ticket_number}**`,
+        `User: <@${creator.id}> (${creator.id})`,
+        `Subject: ${subject}`,
+        `Details: ${details}`,
+        '',
+        'Messages typed here are automatically sent to the user-facing ticket by Pank.'
+      ].join('\n')
+    });
+
+    await log.send({
+      content: `Ticket #${ticket.ticket_number} opened by <@${creator.id}>. User: <#${userChannel.id}> Staff: <#${staffChannel.id}>`
+    }).catch(() => null);
+
+    return { ticket, userChannel, staffChannel, closed, log };
+  } catch (error) {
+    await staffChannel?.delete('Rolling back failed ticket creation').catch(() => null);
+    await userChannel?.delete('Rolling back failed ticket creation').catch(() => null);
+    throw error;
+  }
 }
 
 export async function handleTicketMessage(message) {
