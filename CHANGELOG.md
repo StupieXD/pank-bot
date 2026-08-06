@@ -1,3 +1,19 @@
+# Pank v2.6.2 - Ticket Command Privacy and Public Panel
+
+## Added
+- Added the hidden staff-only `/ticketadmin` command group.
+- Added `/ticketadmin setup` to create or repair all ticket infrastructure.
+- Added `/ticketadmin panel` to create or refresh a pinned public ticket panel.
+- Added a public `open-a-ticket` channel with a pinned Open a Ticket button.
+- Added a Close Ticket button for ticket creators.
+
+## Changed
+- Community members now only see `/ticket open`.
+- Moved close, reopen, claim, rename, transcript, audit, delete, reset and case-linking tools to `/ticketadmin`.
+- Ticket creation now validates configuration and permissions before creating channels.
+- Failed ticket creation now removes partially created channels and returns a clearer error.
+- `/config setup-tickets` now creates the public ticket panel and Ticket Staff category as well.
+
 ## v2.5.1 - Q&A stability and quiet webhook startup
 
 ### Fixed
