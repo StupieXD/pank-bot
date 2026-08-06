@@ -27,7 +27,7 @@
 
 # Changelog
 
-## v2.5.0 â Anonymous Q&A and Emergency Lockdown
+## v2.5.0 Ã¢ÂÂ Anonymous Q&A and Emergency Lockdown
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
@@ -179,3 +179,34 @@
 - Added parent-record validation before standalone audit inserts.
 - Improved Q&A audit lookups so guild and submission records must match.
 - Prevented partial status updates when audit creation fails.
+
+## v2.6.0 - Anonymous Ticket System and Edit Log Accuracy
+
+### Added
+- Linked user-facing and staff-only ticket channels.
+- `/ticket open`, close, reopen, claim, rename, transcript and audit.
+- Automatic anonymous forwarding of moderator messages through Pank.
+- Automatic mirroring of user messages into the staff workspace.
+- Private moderator attribution and internal ticket transcripts.
+- Lockdown-aware ticket creation.
+
+### Changed
+- Ticket infrastructure now creates a dedicated Ticket Staff category.
+- Message edit logs now show only genuinely added and removed text.
+- Discord Markdown is escaped in edit diffs so headings and mentions cannot alter the log layout.
+
+
+## v2.6.1 - Ticket Administration and Case Linking
+
+### Added
+- `/ticket delete` with confirmation and linked-channel cleanup.
+- Owner-only `/ticket reset`, which refuses while active tickets exist and resets numbering to #1.
+- `/ticket link-case`, `/ticket unlink-case`, and `/ticket create-case`.
+- `/caseticket link` and `/caseticket unlink` for linking from outside a ticket.
+- Persistent many-to-many links between tickets and moderation cases.
+- Linked ticket details in `/case` and linked case details in ticket audits and transcripts.
+
+### Fixed
+- Reopened staff channels now return to the Ticket Staff category rather than the user-facing Tickets category.
+- Ticket category ordering now keeps Tickets and Ticket Staff above Closed Tickets.
+- Ticket deletion and reset remove linked records safely through database foreign keys.
