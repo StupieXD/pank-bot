@@ -12,13 +12,14 @@ import {
   setConfigValue
 } from '../../services/guildConfigService.js';
 import { requireManageGuild } from '../../utils/permissionChecks.js';
-import { ensureTicketInfrastructure } from '../../services/ticketInfrastructureService.js';
+import { ensureTicketInfrastructure, ensureTicketPanel } from '../../services/ticketInfrastructureService.js';
 
 const SETTING_CHOICES = [
   ['Moderator role', GUILD_CONFIG_KEYS.STAFF_ROLE_ID],
   ['Tickets category', GUILD_CONFIG_KEYS.TICKET_CATEGORY_ID],
   ['Closed tickets category', GUILD_CONFIG_KEYS.CLOSED_TICKET_CATEGORY_ID],
   ['Ticket log channel', GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID],
+  ['Ticket panel channel', GUILD_CONFIG_KEYS.TICKET_PANEL_CHANNEL_ID],
   ['Anonymous Q&A recipient', GUILD_CONFIG_KEYS.ANONYMOUS_QA_RECIPIENT_ID],
   ['Anonymous Q&A override role', GUILD_CONFIG_KEYS.ANONYMOUS_QA_OVERRIDE_ROLE_ID],
   ['Emergency announcement channel', GUILD_CONFIG_KEYS.EMERGENCY_CHANNEL_ID]
@@ -66,6 +67,7 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
           .addChoices(
             { name: 'Ticket log channel', value: GUILD_CONFIG_KEYS.TICKET_LOG_CHANNEL_ID },
+            { name: 'Ticket panel channel', value: GUILD_CONFIG_KEYS.TICKET_PANEL_CHANNEL_ID },
             { name: 'Emergency announcement channel', value: GUILD_CONFIG_KEYS.EMERGENCY_CHANNEL_ID }
           )
       )
@@ -154,7 +156,8 @@ export async function execute(interaction) {
   if (subcommand === 'setup-tickets') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const result = await ensureTicketInfrastructure(interaction.guild, interaction.user.id);
-    await interaction.editReply({ content: `Success: Ticket infrastructure is ready.\nOpen: <#${result.tickets.id}>\nClosed: <#${result.closed.id}>\nLogs: <#${result.log.id}>`, allowedMentions: { parse: [] } });
+    const panel = await ensureTicketPanel(interaction.guild, interaction.user.id);
+    await interaction.editReply({ content: `Success: Ticket infrastructure is ready.\nPublic panel: <#${panel.channel.id}>\nOpen: <#${result.tickets.id}>\nStaff: <#${result.staff.id}>\nClosed: <#${result.closed.id}>\nLogs: <#${result.log.id}>`, allowedMentions: { parse: [] } });
     return;
   }
 
