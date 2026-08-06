@@ -14,6 +14,7 @@ import {
 import {
   buildModerationCaseEmbed
 } from '../../utils/moderationEmbedBuilder.js';
+import { listTicketsForCase } from '../../database/repositories/ticketRepository.js';
 
 const BUTTON_PREFIX = 'case_navigate';
 
@@ -122,6 +123,22 @@ export async function buildCaseResponse({
     client: interaction.client,
     moderationCase
   });
+
+  const linkedTickets = listTicketsForCase(
+    moderationCase.guildId,
+    moderationCase.id
+  );
+
+  if (linkedTickets.length) {
+    embed.addFields({
+      name: 'Linked Tickets',
+      value: linkedTickets
+        .map((ticket) => `Ticket #${ticket.ticket_number} - <#${ticket.user_channel_id}>`)
+        .join('\n')
+        .slice(0, 1024),
+      inline: false
+    });
+  }
 
   const previousCase = getAdjacentCase({
     guildId: moderationCase.guildId,
