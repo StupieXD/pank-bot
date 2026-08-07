@@ -117,7 +117,6 @@ export async function createLinkedTicket({ guild, creator, subject, details }) {
       new ButtonBuilder()
         .setCustomId(`ticket-user:close:${ticket.id}:${creator.id}`)
         .setLabel('Close Ticket')
-        .setEmoji('ð')
         .setStyle(ButtonStyle.Secondary)
     );
 
