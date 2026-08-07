@@ -249,7 +249,7 @@ export async function handleButton(interaction) {
       return true;
     }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    await setTicketClosed({ interaction, ticket, reason: 'Closed by the ticket creator.' });
+    await setTicketClosed({ interaction, ticket, reason: null });
     await interaction.editReply('Your ticket has been closed.');
     return true;
   }
