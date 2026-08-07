@@ -1,3 +1,10 @@
+# v2.6.3 - Ticket Button Compatibility Fix
+
+- Removed Unicode emoji payloads from ticket action buttons.
+- Fixed Discord `COMPONENT_INVALID_EMOJI` errors when creating ticket channels.
+- Fixed the pinned public ticket panel failing to post.
+- Retained clear text labels for Open a Ticket and Close Ticket controls.
+
 # Pank v2.6.2 - Ticket Command Privacy and Public Panel
 
 ## Added
