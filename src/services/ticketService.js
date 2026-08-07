@@ -126,7 +126,9 @@ export async function createLinkedTicket({ guild, creator, subject, details }) {
         `**Ticket #${ticket.ticket_number}: ${subject}**`,
         details,
         '',
-        'A moderator will reply through Pank. Individual moderator identities remain private.'
+        'Thanks for contacting the moderation team. Please wait while we review your ticket.',
+        '',
+        'Moderator identities are kept private.'
       ].join('\n'),
       components: [closeRow]
     });
