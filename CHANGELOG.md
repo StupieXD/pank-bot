@@ -234,14 +234,17 @@
 - Ticket category ordering now keeps Tickets and Ticket Staff above Closed Tickets.
 - Ticket deletion and reset remove linked records safely through database foreign keys.
 
+## v2.6.5 - Editable Ticket Panel and Staff Reply Guidance
 
-## v2.6.4 - Ticket Relay and Privacy Wording Fix
-
-### Fixed
-- Connected the MessageCreate event to the ticket relay service so staff-channel replies are actually forwarded to the user-facing ticket.
-- Added guarded error logging around ticket message relays so a relay failure does not break the message event.
+### Added
+- `/ticketadmin panel` now opens an editable modal for the public ticket panel title and message.
+- `/ticketadmin panel-delete` deletes the current pinned panel message without deleting the ticket channel or saved panel text.
+- Ticket panel title and body are stored per server in Pank configuration rather than hard-coded.
 
 ### Changed
-- Reworded user-facing ticket text so it does not explain the internal Pank proxy mechanism.
-- User-facing tickets now simply state that the moderation team will review the ticket and moderator identities are kept private.
-- Updated the public ticket panel wording to match the privacy-focused language.
+- `/ticketadmin setup` uses the saved panel text when creating or repairing the public ticket panel.
+- Re-running `/ticketadmin panel` recreates and pins the panel using the newly saved text.
+- Staff ticket workspaces now clearly tell moderators to reply there for anonymous forwarding.
+- Staff workspaces warn moderators not to reply directly in the user-facing ticket unless they intentionally need to reveal their identity.
+- User-facing ticket wording now simply states that moderator identities are kept private.
+- Removed the corrupted legacy emoji text from the default ticket panel title.
