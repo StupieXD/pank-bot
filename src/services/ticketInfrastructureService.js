@@ -125,6 +125,10 @@ export async function ensureTicketInfrastructure(guild, updatedBy) {
   return { tickets, staff, closed, log, staffRole };
 }
 
+export const DEFAULT_TICKET_PANEL_TITLE = 'Open a Ticket';
+export const DEFAULT_TICKET_PANEL_BODY =
+  'If you have any problems, concerns, suggestions, reports or anything else you would like to raise with the moderation team, tap the button below to open a private ticket.';
+
 export async function ensureTicketPanel(
   guild,
   updatedBy,
@@ -174,28 +178,34 @@ export async function ensureTicketPanel(
     });
   }
 
-  let message = null;
   const savedMessageId = getConfigValue(
     guild.id,
     GUILD_CONFIG_KEYS.TICKET_PANEL_MESSAGE_ID
   );
+  let message = savedMessageId
+    ? await channel.messages.fetch(savedMessageId).catch(() => null)
+    : null;
 
-  if (!refresh && savedMessageId) {
-    message = await channel.messages.fetch(savedMessageId).catch(() => null);
+  const title = getConfigValue(
+    guild.id,
+    GUILD_CONFIG_KEYS.TICKET_PANEL_TITLE,
+    DEFAULT_TICKET_PANEL_TITLE
+  );
+  const body = getConfigValue(
+    guild.id,
+    GUILD_CONFIG_KEYS.TICKET_PANEL_BODY,
+    DEFAULT_TICKET_PANEL_BODY
+  );
+
+  if (refresh && message) {
+    await message.delete().catch(() => null);
+    message = null;
   }
 
   if (!message) {
     const embed = new EmbedBuilder()
-      .setTitle('Ã°ÂÂÂ« Private Support Tickets')
-      .setDescription(
-        [
-          'Need to speak privately with the moderation team?',
-          '',
-          'Press **Open a Ticket** below. Pank will create a private channel that only you, Pank and authorised moderators can access.',
-          '',
-          'Your ticket is private. Moderator identities are kept private.'
-        ].join('\n')
-      );
+      .setTitle(title)
+      .setDescription(body);
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -214,6 +224,35 @@ export async function ensureTicketPanel(
   });
 
   return { channel, message };
+}
+
+export async function deleteTicketPanel(guild, updatedBy) {
+  const channel = resolveTextChannel(
+    guild,
+    getConfigValue(guild.id, GUILD_CONFIG_KEYS.TICKET_PANEL_CHANNEL_ID)
+  );
+  const messageId = getConfigValue(
+    guild.id,
+    GUILD_CONFIG_KEYS.TICKET_PANEL_MESSAGE_ID
+  );
+
+  let deleted = false;
+  if (channel && messageId) {
+    const message = await channel.messages.fetch(messageId).catch(() => null);
+    if (message) {
+      await message.delete().catch(() => null);
+      deleted = true;
+    }
+  }
+
+  setConfigValue({
+    guildId: guild.id,
+    key: GUILD_CONFIG_KEYS.TICKET_PANEL_MESSAGE_ID,
+    value: null,
+    updatedBy
+  });
+
+  return deleted;
 }
 
 function resolveCategory(guild, id) {
