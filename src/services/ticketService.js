@@ -182,26 +182,104 @@ export async function handleTicketMessage(message) {
 }
 
 export async function setTicketClosed({ interaction, ticket, reason }) {
-  const { closed, log }=await ensureTicketInfrastructure(interaction.guild,interaction.user.id);
-  const user=await interaction.guild.channels.fetch(ticket.user_channel_id).catch(()=>null);
-  const staff=await interaction.guild.channels.fetch(ticket.staff_channel_id).catch(()=>null);
-  await user?.setParent(closed.id,{lockPermissions:false});
-  await staff?.setParent(closed.id,{lockPermissions:false});
-  await user?.permissionOverwrites.edit(ticket.creator_id,{SendMessages:false,AttachFiles:false});
-  const updated=updateTicketStatus({ticketId:ticket.id,guildId:ticket.guild_id,status:'closed',actorId:interaction.user.id,reason});
-  await user?.send({content:`This ticket has been closed.${reason?` Reason: ${reason}`:''}`});
-  await staff?.send({content:`Ticket closed by <@${interaction.user.id}>.${reason?` Reason: ${reason}`:''}`});
-  await log.send({content:`Ticket #${ticket.ticket_number} closed by <@${interaction.user.id}>.`,files:[buildInternalTicketTranscript(updated)]}).catch(()=>null);
+  const { closed, log } = await ensureTicketInfrastructure(interaction.guild, interaction.user.id);
+  const userChannel = await interaction.guild.channels.fetch(ticket.user_channel_id).catch(() => null);
+  const staffChannel = await interaction.guild.channels.fetch(ticket.staff_channel_id).catch(() => null);
+
+  const updated = updateTicketStatus({
+    ticketId: ticket.id,
+    guildId: ticket.guild_id,
+    status: 'closed',
+    actorId: interaction.user.id,
+    reason
+  });
+
+  // Always attempt a closure DM before removing the creator's access to the channel.
+  // A failed DM must never prevent the ticket from closing.
+  const creator = await interaction.client.users.fetch(ticket.creator_id).catch(() => null);
+  const closedByCreator = interaction.user.id === ticket.creator_id;
+  let closureDmSent = false;
+
+  if (creator) {
+    const dmLines = [
+      `**Ticket #${ticket.ticket_number} has been closed**`,
+      '',
+      `**Subject:** ${ticket.subject || 'No subject'}`,
+      '',
+      'Your ticket has now been closed and archived.',
+      `**Closed by:** ${closedByCreator ? 'You' : 'Moderation Team'}`
+    ];
+
+    if (reason) dmLines.push(`**Reason:** ${reason}`);
+
+    dmLines.push(
+      '',
+      'The ticket is no longer visible in the server.',
+      'If you still need help, you can open a new ticket at any time.'
+    );
+
+    closureDmSent = await creator.send({ content: dmLines.join('\n') })
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  addTicketAudit({
+    guildId: ticket.guild_id,
+    ticketId: ticket.id,
+    actorId: interaction.client.user.id,
+    action: closureDmSent ? 'closure_dm_sent' : 'closure_dm_failed',
+    details: closureDmSent ? 'Closure DM delivered to ticket creator.' : 'Closure DM could not be delivered to ticket creator.'
+  });
+
+  await userChannel?.setParent(closed.id, { lockPermissions: false });
+  await staffChannel?.setParent(closed.id, { lockPermissions: false });
+
+  // Closed tickets are staff-only. The creator regains access if the ticket is reopened.
+  await userChannel?.permissionOverwrites.edit(ticket.creator_id, {
+    ViewChannel: false,
+    SendMessages: false,
+    ReadMessageHistory: false,
+    AttachFiles: false,
+    EmbedLinks: false
+  });
+
+  await staffChannel?.send({
+    content: `Ticket closed by <@${interaction.user.id}>.${reason ? ` Reason: ${reason}` : ''} ${closureDmSent ? 'The creator was notified by DM.' : 'The creator could not be notified by DM.'}`
+  });
+
+  await log.send({
+    content: `Ticket #${ticket.ticket_number} closed by <@${interaction.user.id}>. Closure DM: ${closureDmSent ? 'delivered' : 'failed'}.`,
+    files: [buildInternalTicketTranscript(updated)]
+  }).catch(() => null);
+
   return updated;
 }
 
 export async function setTicketReopened({ interaction, ticket, reason }) {
-  const { tickets, staff: staffCategory }=await ensureTicketInfrastructure(interaction.guild,interaction.user.id);
-  const user=await interaction.guild.channels.fetch(ticket.user_channel_id).catch(()=>null);
-  const staff=await interaction.guild.channels.fetch(ticket.staff_channel_id).catch(()=>null);
-  await user?.setParent(tickets.id,{lockPermissions:false}); await staff?.setParent(staffCategory.id,{lockPermissions:false});
-  await user?.permissionOverwrites.edit(ticket.creator_id,{SendMessages:true,AttachFiles:true});
-  const updated=updateTicketStatus({ticketId:ticket.id,guildId:ticket.guild_id,status:'open',actorId:interaction.user.id,reason});
-  await user?.send({content:'This ticket has been reopened.'}); await staff?.send({content:`Ticket reopened by <@${interaction.user.id}>.`});
+  const { tickets, staff: staffCategory } = await ensureTicketInfrastructure(interaction.guild, interaction.user.id);
+  const userChannel = await interaction.guild.channels.fetch(ticket.user_channel_id).catch(() => null);
+  const staffChannel = await interaction.guild.channels.fetch(ticket.staff_channel_id).catch(() => null);
+
+  await userChannel?.setParent(tickets.id, { lockPermissions: false });
+  await staffChannel?.setParent(staffCategory.id, { lockPermissions: false });
+
+  await userChannel?.permissionOverwrites.edit(ticket.creator_id, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true,
+    AttachFiles: true,
+    EmbedLinks: true
+  });
+
+  const updated = updateTicketStatus({
+    ticketId: ticket.id,
+    guildId: ticket.guild_id,
+    status: 'open',
+    actorId: interaction.user.id,
+    reason
+  });
+
+  await userChannel?.send({ content: 'This ticket has been reopened.' });
+  await staffChannel?.send({ content: `Ticket reopened by <@${interaction.user.id}>.` });
   return updated;
 }
