@@ -1,6 +1,6 @@
 {
   "name": "pank-bot",
-  "version": "2.6.2",
+  "version": "2.6.3",
   "description": "Custom Discord bot for Stuniverse",
   "main": "index.js",
   "type": "module",
