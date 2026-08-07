@@ -201,7 +201,6 @@ export async function ensureTicketPanel(
       new ButtonBuilder()
         .setCustomId('ticket-public:open')
         .setLabel('Open a Ticket')
-        .setEmoji('ð«')
         .setStyle(ButtonStyle.Primary)
     );
 
