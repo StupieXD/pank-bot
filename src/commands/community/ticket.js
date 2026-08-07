@@ -132,7 +132,6 @@ export function buildOpenTicketButton() {
     new ButtonBuilder()
       .setCustomId(OPEN_BUTTON_ID)
       .setLabel('Open a Ticket')
-      .setEmoji('ð«')
       .setStyle(ButtonStyle.Primary)
   );
 }
