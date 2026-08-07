@@ -50,7 +50,7 @@
 
 # Changelog
 
-## v2.5.0 ÃÂ¢ÃÂÃÂ Anonymous Q&A and Emergency Lockdown
+## v2.5.0 ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ Anonymous Q&A and Emergency Lockdown
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
@@ -248,3 +248,19 @@
 - Staff workspaces warn moderators not to reply directly in the user-facing ticket unless they intentionally need to reveal their identity.
 - User-facing ticket wording now simply states that moderator identities are kept private.
 - Removed the corrupted legacy emoji text from the default ticket panel title.
+
+## v2.6.6 - Closed Ticket Privacy and Closure Notifications
+
+### Changed
+- Closed tickets are now hidden from the ticket creator instead of remaining read-only.
+- Reopening a ticket restores the creator's view, send, history, attachment, and embed permissions.
+- Pank now DMs the ticket creator whenever a ticket is closed, whether it was closed by the creator or by staff.
+- Moderator closures are shown in the DM as being closed by the Moderation Team so staff identities remain private.
+- Closure reasons are included in the DM when one is supplied.
+
+### Added
+- Ticket audit entries now record whether the closure DM was delivered or could not be delivered.
+- Ticket logs show closure DM delivery status.
+
+### Reliability
+- A failed or blocked DM no longer prevents the ticket from closing or being archived.
