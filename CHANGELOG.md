@@ -50,7 +50,7 @@
 
 # Changelog
 
-## v2.5.0 Ã¢ÂÂ Anonymous Q&A and Emergency Lockdown
+## v2.5.0 ÃÂ¢ÃÂÃÂ Anonymous Q&A and Emergency Lockdown
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
@@ -233,3 +233,15 @@
 - Reopened staff channels now return to the Ticket Staff category rather than the user-facing Tickets category.
 - Ticket category ordering now keeps Tickets and Ticket Staff above Closed Tickets.
 - Ticket deletion and reset remove linked records safely through database foreign keys.
+
+
+## v2.6.4 - Ticket Relay and Privacy Wording Fix
+
+### Fixed
+- Connected the MessageCreate event to the ticket relay service so staff-channel replies are actually forwarded to the user-facing ticket.
+- Added guarded error logging around ticket message relays so a relay failure does not break the message event.
+
+### Changed
+- Reworded user-facing ticket text so it does not explain the internal Pank proxy mechanism.
+- User-facing tickets now simply state that the moderation team will review the ticket and moderator identities are kept private.
+- Updated the public ticket panel wording to match the privacy-focused language.
