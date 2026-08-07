@@ -140,7 +140,10 @@ export async function createLinkedTicket({ guild, creator, subject, details }) {
         `Subject: ${subject}`,
         `Details: ${details}`,
         '',
-        'Messages typed here are automatically sent to the user-facing ticket by Pank.'
+        '**MODERATOR REPLY AREA**',
+        'Reply to the user by typing in this staff channel. Pank will send your message to the user-facing ticket anonymously.',
+        '',
+        '**Do not reply directly in the user-facing ticket unless you intentionally need to break moderator anonymity.**'
       ].join('\n')
     });
 
