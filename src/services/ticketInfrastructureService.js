@@ -186,14 +186,14 @@ export async function ensureTicketPanel(
 
   if (!message) {
     const embed = new EmbedBuilder()
-      .setTitle('ð« Private Support Tickets')
+      .setTitle('Ã°ÂÂÂ« Private Support Tickets')
       .setDescription(
         [
           'Need to speak privately with the moderation team?',
           '',
           'Press **Open a Ticket** below. Pank will create a private channel that only you, Pank and authorised moderators can access.',
           '',
-          'Moderator replies are sent through Pank so individual moderator identities remain private.'
+          'Your ticket is private. Moderator identities are kept private.'
         ].join('\n')
       );
 
