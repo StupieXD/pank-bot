@@ -4,8 +4,11 @@ import {
   ButtonStyle,
   EmbedBuilder,
   MessageFlags,
+  ModalBuilder,
   PermissionFlagsBits,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } from 'discord.js';
 import {
   claimTicket,
@@ -26,12 +29,18 @@ import {
   setTicketReopened
 } from '../../services/ticketService.js';
 import {
+  DEFAULT_TICKET_PANEL_BODY,
+  DEFAULT_TICKET_PANEL_TITLE,
+  deleteTicketPanel,
   ensureTicketInfrastructure,
   ensureTicketPanel
 } from '../../services/ticketInfrastructureService.js';
 import { createNote, getCase } from '../../services/moderationService.js';
+import { GUILD_CONFIG_KEYS, getConfigValue, setConfigValue } from '../../services/guildConfigService.js';
+import { registerModalHandler } from '../../services/interactionRouterService.js';
 
 const BUTTON_PREFIX = 'ticket-admin';
+const PANEL_MODAL_PREFIX = 'ticket-admin:panel-edit:';
 
 export const data = new SlashCommandBuilder()
   .setName('ticketadmin')
@@ -39,7 +48,8 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
   .setDMPermission(false)
   .addSubcommand((s) => s.setName('setup').setDescription('Create or repair all ticket categories, logs and the public ticket panel.'))
-  .addSubcommand((s) => s.setName('panel').setDescription('Create or refresh the public Open a Ticket panel.'))
+  .addSubcommand((s) => s.setName('panel').setDescription('Create or edit the public Open a Ticket panel.'))
+  .addSubcommand((s) => s.setName('panel-delete').setDescription('Delete the current public ticket panel message.'))
   .addSubcommand((s) => s.setName('close').setDescription('Close the current ticket.').addStringOption((o) => o.setName('reason').setDescription('Closing reason').setMaxLength(500)))
   .addSubcommand((s) => s.setName('reopen').setDescription('Reopen the current ticket.').addStringOption((o) => o.setName('reason').setDescription('Reason').setMaxLength(500)))
   .addSubcommand((s) => s.setName('claim').setDescription('Claim the current ticket.'))
@@ -72,14 +82,56 @@ export async function execute(interaction) {
   }
 
   if (sub === 'panel') {
+    const title = getConfigValue(
+      interaction.guildId,
+      GUILD_CONFIG_KEYS.TICKET_PANEL_TITLE,
+      DEFAULT_TICKET_PANEL_TITLE
+    );
+    const body = getConfigValue(
+      interaction.guildId,
+      GUILD_CONFIG_KEYS.TICKET_PANEL_BODY,
+      DEFAULT_TICKET_PANEL_BODY
+    );
+
+    const modal = new ModalBuilder()
+      .setCustomId(`${PANEL_MODAL_PREFIX}${interaction.guildId}`)
+      .setTitle('Edit Ticket Panel');
+
+    const titleInput = new TextInputBuilder()
+      .setCustomId('title')
+      .setLabel('Panel title')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(100)
+      .setValue(title.slice(0, 100));
+
+    const bodyInput = new TextInputBuilder()
+      .setCustomId('body')
+      .setLabel('Panel message')
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(2000)
+      .setValue(body.slice(0, 2000));
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(titleInput),
+      new ActionRowBuilder().addComponents(bodyInput)
+    );
+
+    await interaction.showModal(modal);
+    return;
+  }
+
+  if (sub === 'panel-delete') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    const panel = await ensureTicketPanel(
+    const deleted = await deleteTicketPanel(
       interaction.guild,
-      interaction.user.id,
-      { refresh: true }
+      interaction.user.id
     );
     await interaction.editReply(
-      `The public ticket panel is ready in <#${panel.channel.id}> and the panel message is pinned.`
+      deleted
+        ? 'The public ticket panel message was deleted. Run `/ticketadmin panel` whenever you want to create it again.'
+        : 'There is no saved public ticket panel message to delete. Run `/ticketadmin panel` to create one.'
     );
     return;
   }
@@ -236,6 +288,42 @@ export async function handleButton(interaction) {
   }
   return false;
 }
+
+
+registerModalHandler(PANEL_MODAL_PREFIX, async (interaction) => {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const title = interaction.fields.getTextInputValue('title').trim();
+  const body = interaction.fields.getTextInputValue('body').trim();
+
+  if (!title || !body) {
+    await interaction.editReply('The panel title and message cannot be empty.');
+    return;
+  }
+
+  setConfigValue({
+    guildId: interaction.guildId,
+    key: GUILD_CONFIG_KEYS.TICKET_PANEL_TITLE,
+    value: title,
+    updatedBy: interaction.user.id
+  });
+  setConfigValue({
+    guildId: interaction.guildId,
+    key: GUILD_CONFIG_KEYS.TICKET_PANEL_BODY,
+    value: body,
+    updatedBy: interaction.user.id
+  });
+
+  const panel = await ensureTicketPanel(
+    interaction.guild,
+    interaction.user.id,
+    { refresh: true }
+  );
+
+  await interaction.editReply(
+    `The public ticket panel has been updated in <#${panel.channel.id}> and pinned.`
+  );
+});
 
 function confirmationRow(confirmSuffix, label) {
   return new ActionRowBuilder().addComponents(
