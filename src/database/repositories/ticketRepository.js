@@ -40,8 +40,8 @@ export function updateTicketStatus({ ticketId, guildId, status, actorId, reason 
   const db = getDatabase();
   db.exec('BEGIN IMMEDIATE');
   try {
-    if (status === 'closed') db.prepare(`UPDATE tickets SET status='closed', closed_by=?, closed_at=CURRENT_TIMESTAMP, close_reason=? WHERE id=? AND guild_id=?`).run(actorId, reason, ticketId, guildId);
-    else db.prepare(`UPDATE tickets SET status='open', reopened_by=?, reopened_at=CURRENT_TIMESTAMP WHERE id=? AND guild_id=?`).run(actorId, ticketId, guildId);
+    if (status === 'closed') db.prepare(`UPDATE tickets SET status='closed', closed_by=?, closed_at=CURRENT_TIMESTAMP, close_reason=?, archived_at=NULL WHERE id=? AND guild_id=?`).run(actorId, reason, ticketId, guildId);
+    else db.prepare(`UPDATE tickets SET status='open', reopened_by=?, reopened_at=CURRENT_TIMESTAMP, archived_at=NULL WHERE id=? AND guild_id=?`).run(actorId, ticketId, guildId);
     addTicketAuditInternal(db, { guildId, ticketId, actorId, action: status, details: reason });
     db.exec('COMMIT');
     return getTicketById(ticketId);
@@ -75,6 +75,42 @@ export function listTicketMessages(guildId, ticketId) {
 }
 export function listTicketAudit(guildId, ticketId) {
   return getDatabase().prepare(`SELECT * FROM ticket_audit WHERE guild_id=? AND ticket_id=? ORDER BY id ASC`).all(guildId,ticketId);
+}
+
+
+export function listClosedTicketsPendingArchive() {
+  return getDatabase().prepare(`
+    SELECT *
+    FROM tickets
+    WHERE status = 'closed'
+      AND closed_at IS NOT NULL
+      AND archived_at IS NULL
+    ORDER BY closed_at ASC
+  `).all();
+}
+
+export function markTicketChannelsArchived({ guildId, ticketId, actorId }) {
+  const db = getDatabase();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare(`
+      UPDATE tickets
+      SET archived_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND guild_id = ? AND status = 'closed'
+    `).run(ticketId, guildId);
+    addTicketAuditInternal(db, {
+      guildId,
+      ticketId,
+      actorId,
+      action: 'channels_archived',
+      details: 'Expired closed ticket channels removed by retention policy.'
+    });
+    db.exec('COMMIT');
+    return getTicketById(ticketId);
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function permanentlyDeleteTicket({ guildId, ticketNumber }) {
