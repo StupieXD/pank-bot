@@ -178,6 +178,7 @@ export function initialiseDatabase() {
       close_reason TEXT,
       reopened_by TEXT,
       reopened_at TEXT,
+      archived_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (guild_id, ticket_number)
     );
@@ -232,6 +233,7 @@ export function initialiseDatabase() {
 
   migrateAnonymousQaNumbering(database);
   migrateAnonymousQaAuditForeignKey(database);
+  migrateTicketRetention(database);
 
   console.log('Success: Database initialised.');
 }
@@ -381,4 +383,17 @@ function migrateAnonymousQaAuditForeignKey(database) {
     database.exec('ROLLBACK');
     throw error;
   }
+}
+
+
+function migrateTicketRetention(database) {
+  const columns = database.prepare(`PRAGMA table_info(tickets)`).all();
+  if (!columns.some((column) => column.name === 'archived_at')) {
+    database.exec('ALTER TABLE tickets ADD COLUMN archived_at TEXT');
+  }
+
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_tickets_retention
+      ON tickets (status, archived_at, closed_at);
+  `);
 }
