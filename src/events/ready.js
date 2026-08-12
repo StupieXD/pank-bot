@@ -6,6 +6,7 @@ import { initialiseConfirmationService } from '../services/confirmationService.j
 import { initialiseMemberStateCache } from '../services/memberStateCacheService.js';
 import { registerSlashCommands } from '../services/registerSlashCommands.js';
 import { initialiseWebhookStateCache } from '../services/webhookStateCacheService.js';
+import { initialiseTicketRetentionService } from '../services/ticketRetentionService.js';
 import { logInfo, logSuccess } from '../core/logger.js';
 
 export const name = Events.ClientReady;
@@ -22,6 +23,7 @@ export async function execute(client) {
   await initialiseMemberStateCache(client);
   await initialiseWebhookStateCache(client);
   initialiseTemporaryBanScheduler(client);
+  initialiseTicketRetentionService(client);
 
   logSuccess('Startup initialisation complete.');
 }
