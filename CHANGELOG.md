@@ -50,7 +50,7 @@
 
 # Changelog
 
-## v2.5.0 ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ Anonymous Q&A and Emergency Lockdown
+## v2.5.0 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Anonymous Q&A and Emergency Lockdown
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
@@ -264,3 +264,25 @@
 
 ### Reliability
 - A failed or blocked DM no longer prevents the ticket from closing or being archived.
+
+## v2.7.0 - Ticket Retention Foundation
+
+### Added
+- `/ticketadmin retention` to view or configure closed-ticket channel retention.
+- Retention options: Never, 7, 14, 30, 60, 90, and 365 days.
+- 30-day default retention when no server-specific setting exists.
+- Hourly ticket retention service that removes expired user and staff ticket channels.
+- `/ticketadmin cleanup` for administrators to run the retention check manually.
+- Persistent `archived_at` metadata so archived ticket records remain searchable in SQLite after their Discord channels are removed.
+
+### Behaviour
+- Only closed tickets are eligible for retention cleanup.
+- Open tickets are never removed by the retention service.
+- Missing or manually deleted ticket channels are handled safely.
+- Ticket database records, stored messages, audit history, and case links are preserved when channels are archived.
+- Attachments continue to be stored only as URL metadata; file bytes are not duplicated into SQLite.
+- Archived tickets cannot be reopened because their Discord channels no longer exist.
+
+### Reliability
+- Cleanup runs once at startup and then once per hour.
+- A failed channel deletion does not stop the rest of the cleanup run.
