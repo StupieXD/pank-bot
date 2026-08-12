@@ -38,6 +38,12 @@ import {
 import { createNote, getCase } from '../../services/moderationService.js';
 import { GUILD_CONFIG_KEYS, getConfigValue, setConfigValue } from '../../services/guildConfigService.js';
 import { registerModalHandler } from '../../services/interactionRouterService.js';
+import {
+  DEFAULT_TICKET_RETENTION_DAYS,
+  TICKET_RETENTION_OPTIONS,
+  getTicketRetentionDays,
+  runTicketRetentionCleanup
+} from '../../services/ticketRetentionService.js';
 
 const BUTTON_PREFIX = 'ticket-admin';
 const PANEL_MODAL_PREFIX = 'ticket-admin:panel-edit:';
@@ -50,6 +56,22 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) => s.setName('setup').setDescription('Create or repair all ticket categories, logs and the public ticket panel.'))
   .addSubcommand((s) => s.setName('panel').setDescription('Create or edit the public Open a Ticket panel.'))
   .addSubcommand((s) => s.setName('panel-delete').setDescription('Delete the current public ticket panel message.'))
+  .addSubcommand((s) => s
+    .setName('retention')
+    .setDescription('View or change how long closed ticket channels are kept.')
+    .addIntegerOption((o) => o
+      .setName('days')
+      .setDescription('How long to keep closed ticket channels (default: 30 days)')
+      .addChoices(
+        { name: 'Never delete automatically', value: 0 },
+        { name: '7 days', value: 7 },
+        { name: '14 days', value: 14 },
+        { name: '30 days', value: 30 },
+        { name: '60 days', value: 60 },
+        { name: '90 days', value: 90 },
+        { name: '365 days', value: 365 }
+      )))
+  .addSubcommand((s) => s.setName('cleanup').setDescription('Run the ticket retention cleanup check now.'))
   .addSubcommand((s) => s.setName('close').setDescription('Close the current ticket.').addStringOption((o) => o.setName('reason').setDescription('Closing reason').setMaxLength(500)))
   .addSubcommand((s) => s.setName('reopen').setDescription('Reopen the current ticket.').addStringOption((o) => o.setName('reason').setDescription('Reason').setMaxLength(500)))
   .addSubcommand((s) => s.setName('claim').setDescription('Claim the current ticket.'))
@@ -136,6 +158,59 @@ export async function execute(interaction) {
     return;
   }
 
+  if (sub === 'retention') {
+    const selectedDays = interaction.options.getInteger('days');
+    if (selectedDays === null) {
+      const currentDays = getTicketRetentionDays(interaction.guildId);
+      await interaction.reply({
+        content: currentDays === 0
+          ? 'Closed ticket channels are currently kept indefinitely.'
+          : `Closed ticket channels are currently kept for **${currentDays} days** before automatic archival. The default is ${DEFAULT_TICKET_RETENTION_DAYS} days.`,
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      return deny(interaction, 'Administrator permission is required to change ticket retention.');
+    }
+
+    if (!TICKET_RETENTION_OPTIONS.includes(selectedDays)) {
+      return deny(interaction, 'That retention period is not supported.');
+    }
+
+    setConfigValue({
+      guildId: interaction.guildId,
+      key: GUILD_CONFIG_KEYS.TICKET_RETENTION_DAYS,
+      value: String(selectedDays),
+      updatedBy: interaction.user.id
+    });
+
+    await interaction.reply({
+      content: selectedDays === 0
+        ? 'Ticket retention updated: closed ticket channels will **not** be deleted automatically.'
+        : `Ticket retention updated: closed ticket channels will be automatically archived after **${selectedDays} days**.`,
+      flags: MessageFlags.Ephemeral
+    });
+    return;
+  }
+
+  if (sub === 'cleanup') {
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      return deny(interaction, 'Administrator permission is required to run ticket retention cleanup manually.');
+    }
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const result = await runTicketRetentionCleanup(interaction.client, { guildId: interaction.guildId });
+    if (result.alreadyRunning) {
+      await interaction.editReply('Ticket retention cleanup is already running.');
+      return;
+    }
+    await interaction.editReply(
+      `Ticket retention cleanup complete. Archived **${result.archived}** expired ticket${result.archived === 1 ? '' : 's'}${result.skipped ? `; skipped **${result.skipped}** record${result.skipped === 1 ? '' : 's'}.` : '.'}`
+    );
+    return;
+  }
+
   if (sub === 'delete') {
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       return deny(interaction, 'Administrator permission is required to delete tickets.');
@@ -176,6 +251,9 @@ export async function execute(interaction) {
   }
 
   if (sub === 'reopen') {
+    if (ticket.archived_at) {
+      return deny(interaction, 'This ticket has already been archived by the retention system and its Discord channels have been removed. It cannot be reopened.');
+    }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     await setTicketReopened({ interaction, ticket, reason: interaction.options.getString('reason') });
     await interaction.editReply('Ticket reopened.');
