@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFl
 import { ensureTicketInfrastructure } from './ticketInfrastructureService.js';
 import { GUILD_CONFIG_KEYS, getConfigValue } from './guildConfigService.js';
 import { createTicket, getTicketByChannel, addTicketMessage, addTicketAudit, updateTicketStatus } from '../database/repositories/ticketRepository.js';
-import { buildInternalTicketTranscript } from './ticketTranscriptService.js';
+import { buildInternalTicketTranscript, deleteStoredTicketTranscript } from './ticketTranscriptService.js';
 
 export async function createLinkedTicket({ guild, creator, subject, details }) {
   const infrastructure = await ensureTicketInfrastructure(guild, creator.id);
@@ -257,6 +257,10 @@ export async function setTicketClosed({ interaction, ticket, reason }) {
 
 export async function setTicketReopened({ interaction, ticket, reason }) {
   const { tickets, staff: staffCategory } = await ensureTicketInfrastructure(interaction.guild, interaction.user.id);
+
+  // A transcript can exist if retention prepared the archive but channel deletion failed.
+  // Reopening makes that snapshot stale, so remove it before accepting new conversation.
+  deleteStoredTicketTranscript(ticket);
   const userChannel = await interaction.guild.channels.fetch(ticket.user_channel_id).catch(() => null);
   const staffChannel = await interaction.guild.channels.fetch(ticket.staff_channel_id).catch(() => null);
 
