@@ -41,7 +41,17 @@ export function updateTicketStatus({ ticketId, guildId, status, actorId, reason 
   db.exec('BEGIN IMMEDIATE');
   try {
     if (status === 'closed') db.prepare(`UPDATE tickets SET status='closed', closed_by=?, closed_at=CURRENT_TIMESTAMP, close_reason=?, archived_at=NULL WHERE id=? AND guild_id=?`).run(actorId, reason, ticketId, guildId);
-    else db.prepare(`UPDATE tickets SET status='open', reopened_by=?, reopened_at=CURRENT_TIMESTAMP, archived_at=NULL WHERE id=? AND guild_id=?`).run(actorId, ticketId, guildId);
+    else db.prepare(`
+      UPDATE tickets
+      SET status='open',
+          reopened_by=?,
+          reopened_at=CURRENT_TIMESTAMP,
+          archived_at=NULL,
+          transcript_path=NULL,
+          transcript_generated_at=NULL,
+          transcript_log_message_id=NULL
+      WHERE id=? AND guild_id=?
+    `).run(actorId, ticketId, guildId);
     addTicketAuditInternal(db, { guildId, ticketId, actorId, action: status, details: reason });
     db.exec('COMMIT');
     return getTicketById(ticketId);
@@ -87,6 +97,52 @@ export function listClosedTicketsPendingArchive() {
       AND archived_at IS NULL
     ORDER BY closed_at ASC
   `).all();
+}
+
+
+export function setTicketTranscriptArchive({
+  guildId,
+  ticketId,
+  actorId,
+  transcriptPath,
+  logMessageId = null
+}) {
+  const db = getDatabase();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare(`
+      UPDATE tickets
+      SET transcript_path = ?,
+          transcript_generated_at = CURRENT_TIMESTAMP,
+          transcript_log_message_id = COALESCE(?, transcript_log_message_id)
+      WHERE id = ? AND guild_id = ?
+    `).run(transcriptPath, logMessageId, ticketId, guildId);
+    addTicketAuditInternal(db, {
+      guildId,
+      ticketId,
+      actorId,
+      action: 'transcript_saved',
+      details: transcriptPath
+    });
+    db.exec('COMMIT');
+    return getTicketById(ticketId);
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+export function setTicketTranscriptLogMessage({
+  guildId,
+  ticketId,
+  logMessageId
+}) {
+  getDatabase().prepare(`
+    UPDATE tickets
+    SET transcript_log_message_id = ?
+    WHERE id = ? AND guild_id = ?
+  `).run(logMessageId, ticketId, guildId);
+  return getTicketById(ticketId);
 }
 
 export function markTicketChannelsArchived({ guildId, ticketId, actorId }) {
