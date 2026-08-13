@@ -23,7 +23,7 @@ import {
   resetTicketsForGuild,
   unlinkTicketFromCase
 } from '../../database/repositories/ticketRepository.js';
-import { buildInternalTicketTranscript } from '../../services/ticketTranscriptService.js';
+import { buildInternalTicketTranscript, deleteStoredTicketTranscript } from '../../services/ticketTranscriptService.js';
 import {
   setTicketClosed,
   setTicketReopened
@@ -206,7 +206,7 @@ export async function execute(interaction) {
       return;
     }
     await interaction.editReply(
-      `Ticket retention cleanup complete. Archived **${result.archived}** expired ticket${result.archived === 1 ? '' : 's'}${result.skipped ? `; skipped **${result.skipped}** record${result.skipped === 1 ? '' : 's'}.` : '.'}`
+      `Ticket retention cleanup complete. Archived **${result.archived}** expired ticket${result.archived === 1 ? '' : 's'}; created **${result.transcripts}** permanent HTML transcript${result.transcripts === 1 ? '' : 's'}${result.skipped ? `; skipped **${result.skipped}** record${result.skipped === 1 ? '' : 's'}.` : '.'}`
     );
     return;
   }
@@ -350,6 +350,7 @@ export async function handleButton(interaction) {
       return true;
     }
     await deleteTicketChannels(interaction.guild, ticket);
+    deleteStoredTicketTranscript(ticket);
     permanentlyDeleteTicket({ guildId: interaction.guildId, ticketNumber: Number(value) });
     await interaction.editReply({ content: `Ticket #${value} was permanently deleted.`, components: [] });
     return true;
@@ -360,7 +361,10 @@ export async function handleButton(interaction) {
       return true;
     }
     const tickets = resetTicketsForGuild(interaction.guildId);
-    for (const ticket of tickets) await deleteTicketChannels(interaction.guild, ticket);
+    for (const ticket of tickets) {
+      await deleteTicketChannels(interaction.guild, ticket);
+      deleteStoredTicketTranscript(ticket);
+    }
     await interaction.editReply({ content: `Deleted ${tickets.length} ticket${tickets.length === 1 ? '' : 's'}. The next ticket will be #1.`, components: [] });
     return true;
   }
