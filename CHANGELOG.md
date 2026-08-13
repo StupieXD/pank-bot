@@ -1,3 +1,27 @@
+# v2.7.1 - Permanent HTML Ticket Transcripts
+
+### Added
+- Permanent staff-only HTML transcripts are generated before retention removes closed ticket channels.
+- Transcripts are saved on the VPS under `data/transcripts/tickets/<guild-id>/`.
+- The transcript path, generation timestamp, and optional `#ticket-logs` message ID are stored on the ticket record.
+- Permanent transcript copies are uploaded to `#ticket-logs` when the configured log channel is available.
+- `/ticketadmin transcript` now downloads a readable HTML internal transcript.
+- HTML transcripts include ticket metadata, linked cases, stored conversation messages, attachment links, and the full audit trail.
+- Moderator proxy replies retain the real moderator Discord ID in the internal transcript while the user-facing ticket remains anonymous.
+
+### Behaviour
+- Transcript creation happens before either user or staff Discord channel is deleted by retention.
+- If local transcript creation fails, Pank leaves the channels in place and retries on a later cleanup.
+- If the `#ticket-logs` upload fails but the local transcript is safely stored, retention can still complete.
+- Re-running cleanup does not create duplicate local transcript files and will not repost to `#ticket-logs` once the archive message ID has been stored.
+- If a ticket is reopened after a transcript was prepared but before archival completed, the stale local transcript metadata/file is cleared so the next archive contains the new conversation.
+- Permanently deleting or resetting a ticket also removes its stored HTML transcript file.
+- Attachment file bytes are not copied into SQLite or transcript storage; the transcript contains the stored Discord attachment links only.
+
+### Database
+- Added `transcript_path`, `transcript_generated_at`, and `transcript_log_message_id` columns to `tickets`.
+- Existing SQLite databases migrate automatically during startup.
+
 # v2.6.3 - Ticket Button Compatibility Fix
 
 - Removed Unicode emoji payloads from ticket action buttons.
@@ -50,7 +74,7 @@
 
 # Changelog
 
-## v2.5.0 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Anonymous Q&A and Emergency Lockdown
+## v2.5.0 ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Anonymous Q&A and Emergency Lockdown
 
 ### Added
 - Complete Anonymous Q&A submission and administration workflow.
