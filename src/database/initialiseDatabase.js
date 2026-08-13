@@ -179,6 +179,9 @@ export function initialiseDatabase() {
       reopened_by TEXT,
       reopened_at TEXT,
       archived_at TEXT,
+      transcript_path TEXT,
+      transcript_generated_at TEXT,
+      transcript_log_message_id TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (guild_id, ticket_number)
     );
@@ -234,6 +237,7 @@ export function initialiseDatabase() {
   migrateAnonymousQaNumbering(database);
   migrateAnonymousQaAuditForeignKey(database);
   migrateTicketRetention(database);
+  migrateTicketTranscripts(database);
 
   console.log('Success: Database initialised.');
 }
@@ -396,4 +400,20 @@ function migrateTicketRetention(database) {
     CREATE INDEX IF NOT EXISTS idx_tickets_retention
       ON tickets (status, archived_at, closed_at);
   `);
+}
+
+
+function migrateTicketTranscripts(database) {
+  const columns = database.prepare(`PRAGMA table_info(tickets)`).all();
+  const names = new Set(columns.map((column) => column.name));
+
+  if (!names.has('transcript_path')) {
+    database.exec('ALTER TABLE tickets ADD COLUMN transcript_path TEXT');
+  }
+  if (!names.has('transcript_generated_at')) {
+    database.exec('ALTER TABLE tickets ADD COLUMN transcript_generated_at TEXT');
+  }
+  if (!names.has('transcript_log_message_id')) {
+    database.exec('ALTER TABLE tickets ADD COLUMN transcript_log_message_id TEXT');
+  }
 }
